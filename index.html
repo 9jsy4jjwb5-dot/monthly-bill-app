@@ -24,9 +24,10 @@
 <script>
 const $=id=>document.getElementById(id);let sb=null,user=null,isAdmin=false,meals=[],sheets=[],activeSheet=null;
 const today=new Date();const localDate=d=>{const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)};const monthNow=localDate(today).slice(0,7);$('mealdate').value=localDate(today);$('monthfilter').value=monthNow;$('mealmonth').value=monthNow;
-function config(){try{return JSON.parse(localStorage.getItem('mb_supabase')||'{}')}catch{return {}}}
+function normalizeProjectUrl(value){return String(value||'').trim().replace(/\/rest\/v1\/?$/i,'').replace(/\/+$/,'')}
+function config(){try{const c=JSON.parse(localStorage.getItem('mb_supabase')||'{}');if(c.url){const normalized=normalizeProjectUrl(c.url);if(normalized!==c.url){c.url=normalized;localStorage.setItem('mb_supabase',JSON.stringify(c))}}return c}catch{return {}}}
 function init(){const c=config();if(!c.url||!c.key){$('setup').classList.remove('hidden');return}if(!window.supabase){$('setup').classList.remove('hidden');return}sb=window.supabase.createClient(c.url,c.key);sb.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY'){showPasswordReset()}});checkSession()}
-$('saveconfig').onclick=()=>{const url=$('sburl').value.trim().replace(/\/$/,''),key=$('sbkey').value.trim();if(!url.startsWith('https://')||!key){alert('Please enter a valid project URL and public anon key.');return}localStorage.setItem('mb_supabase',JSON.stringify({url,key}));location.reload()};
+$('saveconfig').onclick=()=>{const url=normalizeProjectUrl($('sburl').value),key=$('sbkey').value.trim();if(!url.startsWith('https://')||!key){alert('Please enter a valid project URL and public anon key.');return}localStorage.setItem('mb_supabase',JSON.stringify({url,key}));location.reload()};
 function showPasswordReset(){$('setup').classList.add('hidden');$('auth').classList.add('hidden');$('app').classList.add('hidden');$('reset').classList.remove('hidden')}
 function isRecoveryReturn(){return location.hash.includes('type=recovery')||new URLSearchParams(location.search).has('code')}
 async function checkSession(){const {data}=await sb.auth.getSession();if(isRecoveryReturn()){showPasswordReset();return}if(data.session){user=data.session.user;await showApp()}else{$('auth').classList.remove('hidden')}}
