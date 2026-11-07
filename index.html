@@ -131,13 +131,13 @@ function renderFiveTabs(){
  const billTotal=expenseTotal;
  const calcRows=[['Vincent daily meals',money(vin)],['Eileen daily meals',money(eil)],['Total meals',money(vin+eil)],['Divided by 2',money((vin+eil)/2)],['Eileen Ezlink adjustment',money(ez)],['Monthly expenses total',money(billTotal)],['Estimated transfer',money((vin+eil)/2+ez)]];
  $('fiveCalc').innerHTML=tableHtml(['Calculation','Amount'],calcRows.map(r=>[r[0],`<strong>${r[1]}</strong>`]))+'<p class="muted">Meal totals use shared entries. Monthly expense totals use the selected workbook sheet. The transfer figure is an estimate based on the displayed source amounts.</p>';
- // Tab 4: Excel columns N:P are array indexes 13:15. Show card total below UOB One,
+ // Tab 4: Excel columns O:Q are array indexes 14:16. Show card total below UOB One,
  // then two spacer rows, followed by Medisave and the remaining monthly payments.
  const cardEntries=[];
- for(const r of [4,5,6,7,8,9]){const name=cell(rows,r,13),amount=cell(rows,r,14),due=cell(rows,r,15);if(name!==''&&name!=null)cardEntries.push([esc(name),fmt(amount),esc(due||'—')])}
+ for(const r of [4,5,6,7,8,9]){const name=cell(rows,r,14),amount=cell(rows,r,15),due=cell(rows,r,16);if(name!==''&&name!=null)cardEntries.push([esc(name),fmt(amount),esc(due||'—')])}
  const cardTotal=cardEntries.reduce((sum,row)=>sum+Number(String(row[1]).replace(/[^0-9.-]/g,'' )||0),0);
  const paymentRows=[];
- for(const r of [14,15,16,17]){const name=cell(rows,r,13),amount=cell(rows,r,14),due=cell(rows,r,15);if(name!==''&&name!=null)paymentRows.push([esc(name),fmt(amount),esc(due||'—')])}
+ for(const r of [14,15,16,17]){const name=cell(rows,r,14),amount=cell(rows,r,15),due=cell(rows,r,16);if(name!==''&&name!=null)paymentRows.push([esc(name),fmt(amount),esc(due||'—')])}
  const cardDisplay=[...cardEntries,['Credit card total',money(cardTotal),'—'],['','',''],['','',''],...paymentRows];
  $('fiveCards').innerHTML=tableHtml(['Bill / payment','Amount','Due date'],cardDisplay.length?cardDisplay:[['No entries','—','—']]);
  $('edit4').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
