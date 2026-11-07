@@ -5,6 +5,30 @@
 <link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg" type="image/svg+xml">
 <style>
 :root{--green:#173f35;--green2:#286453;--bg:#f3f6f4;--card:#fff;--ink:#17221e;--muted:#65736c;--line:#dfe7e2;--gold:#f2c66d;--red:#b42318}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{background:var(--green);color:white;padding:20px 17px 18px;border-radius:0 0 22px 22px}header .eyebrow{font-size:12px;opacity:.8;letter-spacing:.08em;text-transform:uppercase}header h1{font-size:25px;margin:6px 0}header p{margin:0;color:#d6e5dd;font-size:14px}.wrap{max-width:850px;margin:auto;padding:15px 13px 45px}.card{background:var(--card);border:1px solid var(--line);border-radius:17px;padding:16px;margin:0 0 13px;box-shadow:0 3px 12px #193c2b08}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.between{justify-content:space-between}.tabs{display:flex;gap:8px;overflow:auto;margin-bottom:13px}.tab,button{border:0;border-radius:11px;padding:11px 14px;background:#e6eee9;color:var(--green);font-weight:650;font-size:14px;cursor:pointer}.tab.active,button.primary{background:var(--green);color:white}.tab{white-space:nowrap}.muted{color:var(--muted);font-size:13px}.small{font-size:12px}.hidden{display:none!important}label{display:block;font-size:13px;font-weight:650;margin:11px 0 6px}input,select{width:100%;border:1px solid #cbd8d0;background:white;border-radius:10px;padding:12px;font:inherit;color:var(--ink)}.field{flex:1;min-width:130px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{background:#f4f8f5;border-radius:12px;padding:12px}.stat .num{font-size:22px;font-weight:750;margin-top:5px}.section-title{font-size:17px;margin:0 0 8px}.entry{padding:12px 0;border-bottom:1px solid var(--line)}.entry:last-child{border-bottom:0}.pill{display:inline-block;border-radius:30px;background:#e5f2e9;color:#286453;font-size:11px;padding:4px 8px}.notice{background:#fff7e6;border:1px solid #f3dba4;border-radius:12px;padding:11px;font-size:13px;color:#684d13}.danger{color:var(--red)}.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:10px;max-width:100%}table{border-collapse:collapse;font-size:12px;white-space:nowrap;background:white}td,th{border:1px solid var(--line);padding:6px 8px;min-width:65px;max-width:180px}th{background:#edf3ef;position:sticky;top:0}td[contenteditable="true"]{background:#fff9e8;outline-color:#c28d24}.sheetbar{display:flex;gap:7px;overflow:auto;padding:5px 0 10px}.sheetbtn{font-size:12px;padding:8px 10px;white-space:nowrap}.foot{color:var(--muted);text-align:center;font-size:12px;padding:10px}button:disabled{opacity:.5;cursor:not-allowed}@media(min-width:650px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}.wrap{padding-top:22px}}
+
+/* Five-section redesign */
+:root{--navy:#10243d;--navy2:#1c3858;--teal:#0f9b8e;--teal-dark:#087f76;--bg:#f3f6fa;--line:#e1e8f0}
+body{background:var(--bg);color:#17263a}
+header{background:linear-gradient(135deg,var(--navy),var(--navy2));box-shadow:0 8px 24px #10243d20}
+.card{border-radius:18px;border-color:#e5ebf2;box-shadow:0 5px 18px #17314d08}
+.tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;overflow:visible;margin:0 0 14px}
+.tab{white-space:normal;min-height:54px;padding:8px 4px;font-size:11px;line-height:1.2;border-radius:12px;background:#eaf0f6;color:var(--navy)}
+.tab.active{background:var(--navy);color:white}
+.stat{background:linear-gradient(145deg,#f6f9fc,#edf3f9);border:1px solid #e7edf4;border-radius:15px}
+.stat .num{color:var(--navy)}
+.section-title{color:var(--navy)}
+input,select{border-radius:11px;border-color:#d5dfeb}
+button.primary{background:var(--navy)}
+.new-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;white-space:normal}
+.new-table th{background:var(--navy);color:white;text-align:left}
+.new-table td,.new-table th{padding:11px 10px;border-bottom:1px solid #e5ebf2}
+.new-table tr:last-child td{border-bottom:0}
+.new-table td:last-child{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.new-table input{padding:8px;min-height:38px;text-align:right}
+.new-table-wrap{overflow-x:auto;border:1px solid #e1e8f0;border-radius:13px}
+.tab-page .card{margin-bottom:12px}
+@media(max-width:360px){.tab{font-size:10px;padding:7px 2px}.tabs{gap:4px}}
+.legacy-ui{display:none!important}
 </style>
 </head><body>
 <header><div class="eyebrow">Shared household tracker</div><h1>Monthly Bills</h1><p>Daily meals, monthly records and bills in one place.</p></header>
@@ -14,12 +38,27 @@
 <section id="reset" class="card hidden"><h2 class="section-title">Set a new password</h2><p class="muted">Enter a new password for your Monthly Bill account.</p><label>New password</label><input id="newpassword" type="password" autocomplete="new-password" placeholder="At least 6 characters"><label>Confirm new password</label><input id="confirmpassword" type="password" autocomplete="new-password" placeholder="Enter it again"><button class="primary" id="savepassword" style="margin-top:14px;width:100%">Save new password</button><p id="resetmsg" class="muted"></p></section>
 <div id="app" class="hidden">
 <div class="row between" style="margin:5px 2px 13px"><div><span class="pill" id="rolepill">Shared access</span><div class="muted" id="signedin" style="margin-top:5px"></div></div><button id="signout">Sign out</button></div>
-<nav class="tabs"><button class="tab active" data-tab="home">Overview</button><button class="tab" data-tab="meals">Daily meals</button><button class="tab" data-tab="bills">Monthly bills</button><button class="tab hidden" id="admintab" data-tab="admin">Admin</button></nav>
+<nav class="tabs" id="fiveTabs">
+<button class="tab active" data-five="1">1 · Meals</button>
+<button class="tab" data-five="2">2 · Expenses</button>
+<button class="tab" data-five="3">3 · Calculation</button>
+<button class="tab" data-five="4">4 · Cards & Bills</button>
+<button class="tab" data-five="5">5 · Petrol & Cash</button>
+</nav>
+<div class="row between" style="margin:0 0 12px"><div class="muted">Selected month</div><div style="width:170px"><input id="fiveMonth" type="month"></div></div>
+<div id="fivePages">
+<section id="five-1" class="tab-page"><div class="card"><h2 class="section-title">Daily meals</h2><p class="muted">All shared users can add daily meal records.</p><form id="mealform2"><div class="grid"><div><label>Person</label><select id="person2"><option>Vincent</option><option>Eileen</option></select></div><div><label>Date</label><input id="date2" type="date" required></div><div><label>Amount (SGD)</label><input id="amount2" type="number" min="0.01" step="0.01" required placeholder="0.00"></div><div><label>Note (optional)</label><input id="note2" maxlength="120" placeholder="Lunch / dinner"></div></div><button class="primary" type="submit" style="width:100%;margin-top:14px">Add meal</button><p id="mealmsg2" class="muted"></p></form></div><div class="card"><div class="row between"><h2 class="section-title">Meal records</h2><span class="pill" id="mealcount2">0 entries</span></div><div id="fiveMeals"></div></div></section>
+<section id="five-2" class="tab-page hidden"><div class="card"><h2 class="section-title">Monthly expenses</h2><p class="muted">Administrator input · Standard users can view.</p><div id="fiveExpenses"></div><div id="edit2"></div></div></section>
+<section id="five-3" class="tab-page hidden"><div class="card"><h2 class="section-title">Monthly calculation</h2><p class="muted">Calculated automatically from the selected month's meal and expense records.</p><div id="fiveCalc"></div></div></section>
+<section id="five-4" class="tab-page hidden"><div class="card"><h2 class="section-title">Credit cards & payments</h2><p class="muted">Administrator input · Standard users can view.</p><div id="fiveCards"></div><div id="edit4"></div></div></section>
+<section id="five-5" class="tab-page hidden"><div class="card"><h2 class="section-title">Petrol & Cash Card</h2><p class="muted">Administrator input · Standard users can view.</p><div id="fiveFuel"></div><div id="edit5"></div></div></section>
+</div>
+<div class="legacy-ui"><button id="admintab" class="hidden" data-tab="admin"></button>
 <section id="page-home" class="page"><div class="card"><div class="row between"><div><h2 class="section-title">This month</h2><div class="muted">Shared meal entries</div></div><div class="field" style="max-width:180px"><input id="monthfilter" type="month"></div></div><div class="grid" style="margin-top:13px"><div class="stat"><div class="muted">Vincent's meals</div><div class="num" id="vincenttotal">$0.00</div></div><div class="stat"><div class="muted">Eileen's meals</div><div class="num" id="eileentotal">$0.00</div></div><div class="stat"><div class="muted">Total meals</div><div class="num" id="alltotal">$0.00</div></div><div class="stat"><div class="muted">Entries</div><div class="num" id="entrycount">0</div></div></div></div><div class="card"><h2 class="section-title">Latest meal entries</h2><div id="latestmeals" class="muted">Loading…</div></div><div class="notice">Daily meal entries are shared with everyone who has an account. Monthly bill information is only editable by the administrator.</div></section>
 <section id="page-meals" class="page hidden"><div class="card"><h2 class="section-title">Add daily meal</h2><p class="muted">This is the only record type standard users can add.</p><form id="mealform"><div class="grid"><div><label>Person</label><select id="person"><option>Vincent</option><option>Eileen</option></select></div><div><label>Date</label><input id="mealdate" type="date" required></div><div><label>Amount (SGD)</label><input id="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></div><div><label>Note (optional)</label><input id="note" maxlength="120" placeholder="e.g. lunch"></div></div><button class="primary" style="width:100%;margin-top:15px" type="submit">Save meal expense</button><p id="mealmsg" class="muted"></p></form></div><div class="card"><div class="row between"><h2 class="section-title">Shared entries</h2><div class="field" style="max-width:170px"><input id="mealmonth" type="month"></div></div><div id="mealentries"></div></div></section>
 <section id="page-bills" class="page hidden"><div class="card"><h2 class="section-title">Monthly bills</h2><p class="muted">Your workbook sheets will appear here after the administrator imports the Excel file. Standard users can view only.</p><div id="billcontent"><p class="muted">No workbook imported yet.</p></div></div></section>
 <section id="page-admin" class="page hidden"><div class="card"><h2 class="section-title">Administrator tools</h2><p class="muted">Import the existing workbook, then edit bill cells and save the selected month. Imported bill data is stored in the shared database, not in the public website files.</p><label>Import Monthly Bill Excel workbook</label><input id="workbookfile" type="file" accept=".xlsx,.xls"><button id="importworkbook" class="primary" style="margin-top:10px">Import workbook</button><p id="importmsg" class="muted"></p></div><div class="card"><h2 class="section-title">Edit monthly bill sheet</h2><div id="sheetbuttons" class="sheetbar"></div><div id="adminsheet"><p class="muted">Import the workbook to begin.</p></div><button id="savesheet" class="primary" style="margin-top:12px">Save changes</button><p id="savemsg" class="muted"></p></div><div class="card"><h2 class="section-title">Access control</h2><p class="muted">To make someone an administrator, update the app_admins table in Supabase. Do not share your administrator login. Database policies block standard users from editing bill sheets or modifying existing meal entries.</p></div></section>
-</div><div class="foot">Monthly Bill · Shared records · SGD</div></main>
+</div></div><div class="foot">Monthly Bill · Shared records · SGD</div></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 const $=id=>document.getElementById(id);let sb=null,user=null,isAdmin=false,meals=[],sheets=[],activeSheet=null;
@@ -50,11 +89,64 @@ window.deleteMeal=async id=>{if(!isAdmin||!confirm('Delete this meal entry?'))re
 function renderMeals(){$('mealentries').innerHTML=mealHtml(filteredMeals(),isAdmin);$('latestmeals').innerHTML=mealHtml(meals.slice(0,5),false)}
 function renderSummary(){const m=$('monthfilter').value;const a=meals.filter(x=>!m||x.meal_date.startsWith(m));const v=a.filter(x=>x.person==='Vincent').reduce((s,x)=>s+Number(x.amount),0),e=a.filter(x=>x.person==='Eileen').reduce((s,x)=>s+Number(x.amount),0);$('vincenttotal').textContent=money(v);$('eileentotal').textContent=money(e);$('alltotal').textContent=money(v+e);$('entrycount').textContent=a.length}
 $('monthfilter').onchange=renderSummary;$('mealmonth').onchange=renderMeals;
-function switchTab(name){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));document.querySelectorAll('.page').forEach(p=>p.classList.toggle('hidden',p.id!=='page-'+name));if(name==='bills')renderBills();if(name==='admin'&&isAdmin)renderSheetEditor()};document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+function switchTab(name){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));document.querySelectorAll('.page').forEach(p=>p.classList.toggle('hidden',p.id!=='page-'+name));if(name==='bills')renderBills();if(name==='admin'&&isAdmin)renderSheetEditor()};document.querySelectorAll('.legacy-tab').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
 function sheetTable(sheet,editable){if(!sheet)return '<p class="muted">No sheet selected.</p>';const rows=sheet.rows||[];return `<div class="tablewrap"><table><tbody>${rows.map((r,ri)=>'<tr>'+r.map((v,ci)=>`<td ${editable?'contenteditable="true" data-r="'+ri+'" data-c="'+ci+'"':''}>${esc(v==null?'':v)}</td>`).join('')+'</tr>').join('')}</tbody></table></div>`}
 function renderBills(){const target=$('billcontent');if(!sheets.length){target.innerHTML='<p class="muted">No workbook imported yet. Ask the administrator to import it.</p>';return}target.innerHTML=`<label>Month / worksheet</label><select id="viewSheet">${sheets.map(s=>`<option value="${esc(s.sheet_name)}">${esc(s.sheet_name)}</option>`).join('')}</select><div id="viewTable" style="margin-top:10px"></div>`;$('viewSheet').value=activeSheet||sheets[0].sheet_name;$('viewSheet').onchange=()=>{activeSheet=$('viewSheet').value;$('viewTable').innerHTML=sheetTable(sheets.find(s=>s.sheet_name===activeSheet),false)};$('viewTable').innerHTML=sheetTable(sheets.find(s=>s.sheet_name===$('viewSheet').value),false)}
 function renderSheetEditor(){const nav=$('sheetbuttons');if(!sheets.length){nav.innerHTML='';$('adminsheet').innerHTML='<p class="muted">Import the workbook to begin.</p>';return}if(!sheets.some(s=>s.sheet_name===activeSheet))activeSheet=sheets[0].sheet_name;nav.innerHTML=sheets.map(s=>`<button class="sheetbtn ${s.sheet_name===activeSheet?'primary':''}" data-sheet="${esc(s.sheet_name)}">${esc(s.sheet_name)}</button>`).join('');nav.querySelectorAll('button').forEach(b=>b.onclick=()=>{activeSheet=b.dataset.sheet;renderSheetEditor()});$('adminsheet').innerHTML=sheetTable(sheets.find(s=>s.sheet_name===activeSheet),true)}
 $('importworkbook').onclick=async()=>{if(!isAdmin)return;const file=$('workbookfile').files[0];if(!file){$('importmsg').textContent='Choose the Excel workbook first.';return}if(!window.XLSX){$('importmsg').textContent='Excel reader did not load. Check your internet connection.';return}$('importmsg').textContent='Reading workbook…';try{const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});for(let i=0;i<wb.SheetNames.length;i++){const name=wb.SheetNames[i],ws=wb.Sheets[name],rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:null});const clean=rows.map(r=>r.map(v=>v===undefined?'':v));const {error}=await sb.from('monthly_sheets').upsert({sheet_name:name,sheet_order:i,rows:clean,updated_by:user.id,updated_at:new Date().toISOString()},{onConflict:'sheet_name'});if(error)throw error}await loadSheets();activeSheet=sheets[0]?.sheet_name||null;renderBills();renderSheetEditor();$('importmsg').textContent=`Imported ${wb.SheetNames.length} worksheets successfully. You can now edit cells below and save.`}catch(err){$('importmsg').textContent='Import failed: '+err.message}};
 $('savesheet').onclick=async()=>{if(!isAdmin||!activeSheet)return;const sheet=sheets.find(s=>s.sheet_name===activeSheet);if(!sheet)return;const table=$('adminsheet').querySelector('table');if(!table)return;const rows=Array.from(table.rows).map(tr=>Array.from(tr.cells).map(td=>td.innerText));$('savemsg').textContent='Saving…';const {error}=await sb.from('monthly_sheets').update({rows,updated_by:user.id,updated_at:new Date().toISOString()}).eq('sheet_name',activeSheet);if(error){$('savemsg').textContent='Could not save: '+error.message;return}await loadSheets();renderBills();renderSheetEditor();$('savemsg').textContent='Saved. Other users can now see the update.'};
+
+// Five-tab interface: existing Supabase tables and permissions are retained.
+let fiveActive=1;
+const monthStart=()=>($('fiveMonth')?.value||monthNow);
+$('fiveMonth').value=monthNow;
+$('date2').value=localDate(new Date());
+document.querySelectorAll('[data-five]').forEach(b=>b.addEventListener('click',()=>{
+ fiveActive=Number(b.dataset.five);
+ document.querySelectorAll('[data-five]').forEach(x=>x.classList.toggle('active',x===b));
+ document.querySelectorAll('.tab-page').forEach(x=>x.classList.toggle('hidden',x.id!=='five-'+fiveActive));
+}));
+$('fiveMonth').onchange=()=>renderFiveTabs();
+function sheetRows(){const sh=sheets.find(x=>x.sheet_name===activeSheet)||sheets[sheets.length-1];return sh?.rows||[]}
+function cell(rows,r,c){return rows?.[r]?.[c]??''}
+function fmt(v){if(v==null||v==='')return '—';const n=Number(String(v).replace(/[$,]/g,''));return Number.isFinite(n)&&String(v).trim()!==''?money(n):esc(v)}
+function tableHtml(headers,rows){return `<div class="new-table-wrap"><table class="new-table"><thead><tr>${headers.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
+function monthSheet(){const m=monthStart();let match=sheets.find(x=>{const n=x.sheet_name.toLowerCase().replace(/\s/g,'');return n===m.slice(0,3).toLowerCase()+m.slice(2,4)||n===new Date(m+'-01').toLocaleString('en',{month:'short'}).toLowerCase()+m.slice(2,4)});return match||sheets[sheets.length-1]}
+function renderFiveTabs(){
+ const sh=monthSheet();if(!sh){['fiveExpenses','fiveCalc','fiveCards','fiveFuel'].forEach(id=>$(id).innerHTML='<p class="muted">No monthly workbook records found yet. An administrator can import the existing Excel workbook from Admin tools.</p>');renderFiveMeals();return}
+ activeSheet=sh.sheet_name;const rows=sh.rows||[];
+ // Tab 1 uses the shared daily_meals table, not a duplicate workbook copy.
+ renderFiveMeals();
+ // Tab 2: recurring monthly household expenses, columns G:H in the workbook.
+ const expenseRows=[];for(let r=2;r<=10;r++){const name=cell(rows,r,6),amount=cell(rows,r,7);if(name)expenseRows.push([esc(name),fmt(amount)])}
+ $('fiveExpenses').innerHTML=tableHtml(['Expense','Amount'],expenseRows.length?expenseRows:[['No expenses','—']]);
+ $('edit2').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
+ // Tab 3: formula-led summary. Recompute from visible source figures.
+ const mealList=meals.filter(x=>x.meal_date.startsWith(monthStart()));
+ const vin=mealList.filter(x=>x.person==='Vincent').reduce((a,x)=>a+Number(x.amount),0);
+ const eil=mealList.filter(x=>x.person==='Eileen').reduce((a,x)=>a+Number(x.amount),0);
+ const ez=Number(cell(rows,2,4)||0);
+ const billTotal=expenseRows.reduce((a,r)=>a+Number(String(r[1]).replace(/[^0-9.-]/g,'')),0);
+ const calcRows=[['Vincent daily meals',money(vin)],['Eileen daily meals',money(eil)],['Total meals',money(vin+eil)],['Divided by 2',money((vin+eil)/2)],['Eileen Ezlink adjustment',money(ez)],['Monthly expenses total',money(billTotal)],['Estimated transfer',money((vin+eil)/2+ez)]];
+ $('fiveCalc').innerHTML=tableHtml(['Calculation','Amount'],calcRows.map(r=>[r[0],`<strong>${r[1]}</strong>`]))+'<p class="muted">Meal totals use shared entries. Monthly expense totals use the selected workbook sheet. The transfer figure is an estimate based on the displayed source amounts.</p>';
+ // Tab 4: credit card bills and recurring payments (N:P)
+ const cardRows=[];for(let r=2;r<=17;r++){const name=cell(rows,r,13),amount=cell(rows,r,14),due=cell(rows,r,15);if(name)cardRows.push([esc(name),fmt(amount),esc(due||'—')])}
+ $('fiveCards').innerHTML=tableHtml(['Bill / payment','Amount','Due date'],cardRows.length?cardRows:[['No entries','—','—']]);
+ $('edit4').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
+ // Tab 5: petrol and Cash Card entries (R:T)
+ const fuelRows=[];for(let r=2;r<=22;r++){const petrol=cell(rows,r,17),cash=cell(rows,r,19);if(petrol!==''||cash!=='')fuelRows.push([String(r-1),fmt(petrol),fmt(cash)])}
+ $('fiveFuel').innerHTML=tableHtml(['Entry','Petrol','Cash Card'],fuelRows.length?fuelRows:[['No entries','—','—']]);
+ $('edit5').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
+}
+function renderFiveMeals(){
+ const list=meals.filter(x=>x.meal_date.startsWith(monthStart())).sort((a,b)=>b.meal_date.localeCompare(a.meal_date));
+ $('mealcount2').textContent=list.length+' entries';
+ $('fiveMeals').innerHTML=list.length?list.map(x=>`<div class="entry"><div class="row between"><div><strong>${esc(x.person)}</strong><div class="muted">${esc(x.meal_date)} · ${esc(x.note||'Daily meal')}</div></div><strong>${money(x.amount)}</strong></div></div>`).join(''):'<p class="muted">No meal entries for this month yet.</p>';
+}
+$('mealform2').onsubmit=async e=>{e.preventDefault();$('mealmsg2').textContent='Saving…';const rec={person:$('person2').value,meal_date:$('date2').value,amount:Number($('amount2').value),note:$('note2').value.trim()||null,created_by:user.id};const {error}=await sb.from('daily_meals').insert(rec);if(error){$('mealmsg2').textContent='Could not save: '+error.message;return}$('amount2').value='';$('note2').value='';$('mealmsg2').textContent='Saved and shared.';await refreshAll()};
+window.openLegacyAdmin=()=>{if(!isAdmin)return;document.querySelectorAll('.tab-page').forEach(x=>x.classList.add('hidden'));$('fiveTabs').classList.add('legacy-ui');$('fivePages').classList.add('legacy-ui');$('page-admin').parentElement.classList.remove('legacy-ui');$('page-admin').classList.remove('hidden');if(!$('backFiveTabs')){const b=document.createElement('button');b.id='backFiveTabs';b.className='primary';b.textContent='← Back to five tabs';b.style.marginBottom='12px';b.onclick=()=>{ $('page-admin').classList.add('hidden');$('page-admin').parentElement.classList.add('legacy-ui');$('fiveTabs').classList.remove('legacy-ui');$('fivePages').classList.remove('legacy-ui');renderFiveTabs()};$('page-admin').prepend(b)}renderSheetEditor()};
+const oldRefreshAll=refreshAll;
+refreshAll=async()=>{await oldRefreshAll();renderFiveTabs()};
+
 init();
 </script></body></html>
