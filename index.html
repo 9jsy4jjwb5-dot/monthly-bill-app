@@ -136,7 +136,7 @@ function renderFiveTabs(){
  $('fiveCards').innerHTML=tableHtml(['Bill / payment','Amount','Due date'],cardRows.length?cardRows:[['No entries','—','—']]);
  $('edit4').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
  // Tab 5: workbook columns R:T (array indexes 16 and 18 after the blank leading column is omitted).
- const fuelRows=[];let petrolTotal=0,cashTotal=0;for(let r=3;r<=21;r++){const petrol=cell(rows,r,16),cash=cell(rows,r,18);if(petrol!==''&&petrol!=null)petrolTotal+=Number(String(petrol).replace(/[$,]/g,'')||0);if(cash!==''&&cash!=null)cashTotal+=Number(String(cash).replace(/[$,]/g,'')||0);if((petrol!==''&&petrol!=null)||(cash!==''&&cash!=null))fuelRows.push([String(r-2),fmt(petrol),fmt(cash)])}
+ const fuelRows=[];let petrolTotal=0,cashTotal=0;for(let r=0;r<rows.length;r++){const day=Number(String(cell(rows,r,0)).trim()),petrol=cell(rows,r,16),cash=cell(rows,r,18);if(!Number.isInteger(day)||day<1||day>=20)continue;const hasPetrol=petrol!==''&&petrol!=null,hasCash=cash!==''&&cash!=null;if(!hasPetrol&&!hasCash)continue;if(hasPetrol)petrolTotal+=Number(String(petrol).replace(/[$,]/g,'')||0);if(hasCash)cashTotal+=Number(String(cash).replace(/[$,]/g,'')||0);fuelRows.push([String(day),fmt(petrol),fmt(cash)])}
  fuelRows.push(['Total',money(petrolTotal),money(cashTotal)]);
  $('fiveFuel').innerHTML=tableHtml(['Entry','Petrol','Cash Card'],fuelRows.length?fuelRows:[['No entries','—','—']]);
  $('edit5').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
