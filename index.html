@@ -29,6 +29,18 @@ button.primary{background:var(--navy)}
 .tab-page .card{margin-bottom:12px}
 @media(max-width:360px){.tab{font-size:10px;padding:7px 2px}.tabs{gap:4px}}
 .legacy-ui{display:none!important}
+
+/* iPhone scrolling fix: keep the document vertically scrollable and allow
+   horizontal swiping inside wide record tables. */
+html{min-height:100%;overflow-x:hidden;-webkit-text-size-adjust:100%}
+body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:auto;touch-action:pan-y}
+#app,.wrap,.tab-page{min-width:0;width:100%}
+#app{min-height:100vh;min-height:100dvh}
+.tab-page{overflow:visible;max-height:none}
+.new-table-wrap,.tablewrap{display:block;width:100%;max-width:100%;height:auto;max-height:none;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y;}
+.new-table{min-width:520px;width:max-content;max-width:none;}
+.tablewrap table{width:max-content;min-width:100%;}
+.sheetbar,.tabs{max-width:100%;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;}
 </style>
 </head><body>
 <header><div class="eyebrow">Shared household tracker</div><h1>Monthly Bills</h1><p>Daily meals, monthly records and bills in one place.</p></header>
