@@ -118,23 +118,26 @@ function renderFiveTabs(){
  // Tab 1 uses the shared daily_meals table, not a duplicate workbook copy.
  renderFiveMeals();
  // Tab 2: recurring monthly household expenses, columns G:H in the workbook.
- const expenseRows=[];for(let r=2;r<=10;r++){const name=cell(rows,r,6),amount=cell(rows,r,7);if(name)expenseRows.push([esc(name),fmt(amount)])}
+ const expenseRows=[];for(let r=2;r<=9;r++){const name=cell(rows,r,5),amount=cell(rows,r,6);if(name)expenseRows.push([esc(name),fmt(amount)])}
  $('fiveExpenses').innerHTML=tableHtml(['Expense','Amount'],expenseRows.length?expenseRows:[['No expenses','—']]);
  $('edit2').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
  // Tab 3: formula-led summary. Recompute from visible source figures.
  const mealList=meals.filter(x=>x.meal_date.startsWith(monthStart()));
  const vin=mealList.filter(x=>x.person==='Vincent').reduce((a,x)=>a+Number(x.amount),0);
  const eil=mealList.filter(x=>x.person==='Eileen').reduce((a,x)=>a+Number(x.amount),0);
- const ez=Number(cell(rows,2,4)||0);
+ const ez=rows.slice(3,34).reduce((sum,row)=>sum+Number(String(row?.[3]??'').replace(/[$,]/g,'' )||0),0);
  const billTotal=expenseRows.reduce((a,r)=>a+Number(String(r[1]).replace(/[^0-9.-]/g,'')),0);
  const calcRows=[['Vincent daily meals',money(vin)],['Eileen daily meals',money(eil)],['Total meals',money(vin+eil)],['Divided by 2',money((vin+eil)/2)],['Eileen Ezlink adjustment',money(ez)],['Monthly expenses total',money(billTotal)],['Estimated transfer',money((vin+eil)/2+ez)]];
  $('fiveCalc').innerHTML=tableHtml(['Calculation','Amount'],calcRows.map(r=>[r[0],`<strong>${r[1]}</strong>`]))+'<p class="muted">Meal totals use shared entries. Monthly expense totals use the selected workbook sheet. The transfer figure is an estimate based on the displayed source amounts.</p>';
- // Tab 4: credit card bills and recurring payments (N:P)
- const cardRows=[];for(let r=2;r<=17;r++){const name=cell(rows,r,13),amount=cell(rows,r,14),due=cell(rows,r,15);if(name)cardRows.push([esc(name),fmt(amount),esc(due||'—')])}
+ // Tab 4: workbook columns N:P. The sheet import omits the entirely blank column A, so array indexes are one lower than Excel column numbers.
+ const cardRows=[];for(const r of [4,5,6,7,8,9,14,15,16,17]){const name=cell(rows,r,12),amount=cell(rows,r,13),due=cell(rows,r,14);if(name)cardRows.push([esc(name),fmt(amount),esc(due||'—')])}
+ const cardTotal=cardRows.slice(0,6).reduce((sum,row)=>sum+Number(String(row[1]).replace(/[^0-9.-]/g,'' )||0),0);
+ if(cardRows.length)cardRows.splice(6,0,['Credit card total',money(cardTotal),'—']);
  $('fiveCards').innerHTML=tableHtml(['Bill / payment','Amount','Due date'],cardRows.length?cardRows:[['No entries','—','—']]);
  $('edit4').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
- // Tab 5: petrol and Cash Card entries (R:T)
- const fuelRows=[];for(let r=2;r<=22;r++){const petrol=cell(rows,r,17),cash=cell(rows,r,19);if(petrol!==''||cash!=='')fuelRows.push([String(r-1),fmt(petrol),fmt(cash)])}
+ // Tab 5: workbook columns R:T (array indexes 16 and 18 after the blank leading column is omitted).
+ const fuelRows=[];let petrolTotal=0,cashTotal=0;for(let r=3;r<=21;r++){const petrol=cell(rows,r,16),cash=cell(rows,r,18);if(petrol!==''&&petrol!=null)petrolTotal+=Number(String(petrol).replace(/[$,]/g,'')||0);if(cash!==''&&cash!=null)cashTotal+=Number(String(cash).replace(/[$,]/g,'')||0);if((petrol!==''&&petrol!=null)||(cash!==''&&cash!=null))fuelRows.push([String(r-2),fmt(petrol),fmt(cash)])}
+ fuelRows.push(['Total',money(petrolTotal),money(cashTotal)]);
  $('fiveFuel').innerHTML=tableHtml(['Entry','Petrol','Cash Card'],fuelRows.length?fuelRows:[['No entries','—','—']]);
  $('edit5').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
 }
