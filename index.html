@@ -131,17 +131,44 @@ function renderFiveTabs(){
  const billTotal=expenseTotal;
  const calcRows=[['Vincent daily meals',money(vin)],['Eileen daily meals',money(eil)],['Total meals',money(vin+eil)],['Divided by 2',money((vin+eil)/2)],['Eileen Ezlink adjustment',money(ez)],['Monthly expenses total',money(billTotal)],['Estimated transfer',money((vin+eil)/2+ez)]];
  $('fiveCalc').innerHTML=tableHtml(['Calculation','Amount'],calcRows.map(r=>[r[0],`<strong>${r[1]}</strong>`]))+'<p class="muted">Meal totals use shared entries. Monthly expense totals use the selected workbook sheet. The transfer figure is an estimate based on the displayed source amounts.</p>';
- // Tab 4: Excel columns O:Q are array indexes 14:16. Show card total below UOB One,
- // then two spacer rows, followed by Medisave and the remaining monthly payments.
+ // Tab 4: Find the credit-card header by its label instead of assuming fixed
+ // column positions. Some imported worksheets omit the leading blank Excel column.
+ const norm=v=>String(v??'').trim().toLowerCase();
+ const headerRow=rows.findIndex(row=>(row||[]).some(v=>norm(v)==='credit card bill'));
+ const header=headerRow>=0?(rows[headerRow]||[]):[];
+ const nameCol=header.findIndex(v=>norm(v)==='credit card bill');
+ const amountCol=header.findIndex(v=>norm(v)==='amount');
+ const dueCol=header.findIndex(v=>norm(v)==='due date'||norm(v)==='due date ');
  const cardEntries=[];
- for(const r of [4,5,6,7,8,9]){const name=cell(rows,r,14),amount=cell(rows,r,15),due=cell(rows,r,16);if(name!==''&&name!=null)cardEntries.push([esc(name),fmt(amount),esc(due||'—')])}
- const cardTotal=cardEntries.reduce((sum,row)=>sum+Number(String(row[1]).replace(/[^0-9.-]/g,'' )||0),0);
  const paymentRows=[];
- for(const r of [14,15,16,17]){const name=cell(rows,r,14),amount=cell(rows,r,15),due=cell(rows,r,16);if(name!==''&&name!=null)paymentRows.push([esc(name),fmt(amount),esc(due||'—')])}
+ let cardTotal=0, totalRow=-1;
+ if(headerRow>=0&&nameCol>=0&&amountCol>=0&&dueCol>=0){
+   // Credit cards are listed between the header and the workbook's Total row.
+   for(let r=headerRow+1;r<rows.length;r++){
+     const row=rows[r]||[], name=row[nameCol], label=norm(name);
+     if(label==='total'||label==='total:'){totalRow=r;break}
+     if(name!==''&&name!=null){
+       const amount=row[amountCol], due=row[dueCol];
+       const numeric=Number(String(amount??'').replace(/[$,]/g,''));
+       if(Number.isFinite(numeric))cardTotal+=numeric;
+       cardEntries.push([esc(name),fmt(amount),esc(due||'—')]);
+     }
+   }
+   // Monthly payments follow the credit-card Total row. Exclude worksheet
+   // calculation rows such as Total and After deduction; preserve named items.
+   const paymentStart=totalRow>=0?totalRow+1:headerRow+1;
+   for(let r=paymentStart;r<rows.length;r++){
+     const row=rows[r]||[], name=row[nameCol], label=norm(name);
+     if(!label||label==='total'||label==='total:'||label==='after deduction:')continue;
+     const amount=row[amountCol], due=row[dueCol];
+     paymentRows.push([esc(name),fmt(amount),esc(due||'—')]);
+   }
+ }
  const cardDisplay=[...cardEntries,['Credit card total',money(cardTotal),'—'],['','',''],['','',''],...paymentRows];
  $('fiveCards').innerHTML=tableHtml(['Bill / payment','Amount','Due date'],cardDisplay.length?cardDisplay:[['No entries','—','—']]);
  $('edit4').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
- // Tab 5: workbook columns R:T (array indexes 16 and 18 after the blank leading column is omitted).
+
+// Tab 5: workbook columns R:T (array indexes 16 and 18 after the blank leading column is omitted).
  const fuelRows=[];let petrolTotal=0,cashTotal=0;for(let r=0;r<rows.length;r++){const day=Number(String(cell(rows,r,0)).trim()),petrol=cell(rows,r,16),cash=cell(rows,r,18);if(!Number.isInteger(day)||day<1||day>=20)continue;const hasPetrol=petrol!==''&&petrol!=null,hasCash=cash!==''&&cash!=null;if(!hasPetrol&&!hasCash)continue;if(hasPetrol)petrolTotal+=Number(String(petrol).replace(/[$,]/g,'')||0);if(hasCash)cashTotal+=Number(String(cash).replace(/[$,]/g,'')||0);fuelRows.push([String(day),fmt(petrol),fmt(cash)])}
  fuelRows.push(['Total',money(petrolTotal),money(cashTotal)]);
  $('fiveFuel').innerHTML=tableHtml(['Entry','Petrol','Cash Card'],fuelRows.length?fuelRows:[['No entries','—','—']]);
