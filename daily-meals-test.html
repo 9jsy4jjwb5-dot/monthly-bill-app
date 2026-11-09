@@ -90,7 +90,7 @@ body{overflow-y:auto!important;position:relative;-webkit-overflow-scrolling:touc
 <section id="five-1" class="tab-page">
  <div class="card">
   <h2 class="section-title">Daily meals & Ezlink</h2>
-  <p class="muted">Preview only. Vincent, Eileen and Eileen Ezlink are shown separately. New test entries stay on this page and are not saved.</p>
+  <p class="muted">Shared records. Everyone can view all entries; users can manage their own entries, and administrators can manage all entries.</p>
   <form id="mealform2">
    <div class="grid">
     <div><label>Record type</label><select id="person2"><option>Vincent</option><option>Eileen</option><option>Eileen Ezlink</option></select></div>
@@ -234,9 +234,11 @@ function renderFiveTabs(){
  $('fiveFuel').innerHTML=tableHtml(['Entry','Petrol','Cash Card'],fuelRows.length?fuelRows:[['No entries','—','—']]);
  $('edit5').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
 }
-let tab1PreviewDrafts=[];let editingPreviewMeal=-1;
+let editingMealId=null;
+function canManageMeal(x){return !!user&&(isAdmin||x.created_by===user.id)}
+function resetMealForm(){editingMealId=null;$('mealform2').reset();$('date2').value=localDate(new Date());$('mealform2').querySelector('button[type=submit]').textContent='Add record'}
 function renderFiveMeals(){
- const list=[...meals,...tab1PreviewDrafts].filter(x=>x.meal_date.startsWith(monthStart())).sort((a,b)=>b.meal_date.localeCompare(a.meal_date)||String(b.created_at||'').localeCompare(String(a.created_at||'')));
+ const list=meals.filter(x=>x.meal_date.startsWith(monthStart())).sort((a,b)=>b.meal_date.localeCompare(a.meal_date)||String(b.created_at||'').localeCompare(String(a.created_at||'')));
  const categories=['Vincent','Eileen','Eileen Ezlink'];
  const totals=Object.fromEntries(categories.map(name=>[name,list.filter(x=>x.person===name).reduce((sum,x)=>sum+Number(x.amount||0),0)]));
  $('vincentMealTotal').textContent=money(totals.Vincent);
@@ -245,12 +247,13 @@ function renderFiveMeals(){
  $('mealcount2').textContent=list.length+' entries';
  $('fiveMeals').innerHTML=categories.map(name=>{
   const entries=list.filter(x=>x.person===name);
-  return `<section class="meal-record-group"><div class="row between meal-group-heading"><h3>${esc(name)}</h3></div>${entries.length?entries.map(x=>`<div class="entry"><div class="meal-entry-main"><strong>${esc(x.meal_date)}</strong><div class="muted">${esc(x.note|| (name==='Eileen Ezlink'?'Ezlink':'Daily meal'))}</div></div><div style="text-align:right;flex:0 0 auto"><strong class="meal-entry-amount">${money(x.amount)}</strong>${x._preview?`<div class="row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="small" onclick="editPreviewMeal(${tab1PreviewDrafts.indexOf(x)})">Edit</button><button type="button" class="small danger" onclick="deletePreviewMeal(${tab1PreviewDrafts.indexOf(x)})">Delete</button></div>`:''}</div></div>`).join(''):'<p class="muted empty-meals">No records for this category this month.</p>'}</section>`;
+  return `<section class="meal-record-group"><div class="row between meal-group-heading"><h3>${esc(name)}</h3></div>${entries.length?entries.map(x=>`<div class="entry"><div class="meal-entry-main"><strong>${esc(x.meal_date)}</strong><div class="muted">${esc(x.note||(name==='Eileen Ezlink'?'Ezlink':'Daily meal'))}</div></div><div style="text-align:right;flex:0 0 auto"><strong class="meal-entry-amount">${money(x.amount)}</strong>${canManageMeal(x)?`<div class="row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="small" onclick="editMealRecord('${x.id}')">Edit</button><button type="button" class="small danger" onclick="deleteMealRecord('${x.id}')">Delete</button></div>`:''}</div></div>`).join(''):'<p class="muted empty-meals">No records for this category this month.</p>'}</section>`;
  }).join('');
 }
-window.editPreviewMeal=i=>{const x=tab1PreviewDrafts[i];if(!x)return;editingPreviewMeal=i;$('person2').value=x.person;$('date2').value=x.meal_date;$('amount2').value=x.amount;$('note2').value=x.note||'';$('mealform2').querySelector('button[type=submit]').textContent='Save changes';$('mealmsg2').textContent='Editing this preview record.';window.scrollTo({top:0,behavior:'smooth'})};
-window.deletePreviewMeal=i=>{if(!tab1PreviewDrafts[i]||!confirm('Delete this preview record?'))return;tab1PreviewDrafts.splice(i,1);renderFiveMeals();$('mealmsg2').textContent='Preview record deleted. Not saved to the shared database.'};
-$('mealform2').onsubmit=async e=>{e.preventDefault();const rec={person:$('person2').value,meal_date:$('date2').value,amount:Number($('amount2').value),note:$('note2').value.trim()||null,created_at:new Date().toISOString(),_preview:true};if(editingPreviewMeal>=0){tab1PreviewDrafts[editingPreviewMeal]={...tab1PreviewDrafts[editingPreviewMeal],...rec};editingPreviewMeal=-1;$('mealform2').querySelector('button[type=submit]').textContent='Add record';$('mealmsg2').textContent='Preview record updated. Not saved to the shared database.'}else{tab1PreviewDrafts.push(rec);$('mealmsg2').textContent='Preview entry added on this page only. It is not saved to the shared database.'}$('amount2').value='';$('note2').value='';renderFiveMeals()};
+window.editMealRecord=id=>{const x=meals.find(r=>r.id===id);if(!x||!canManageMeal(x))return;editingMealId=id;$('person2').value=x.person;$('date2').value=x.meal_date;$('amount2').value=x.amount;$('note2').value=x.note||'';$('mealform2').querySelector('button[type=submit]').textContent='Save changes';$('mealmsg2').textContent='Editing your record.';window.scrollTo({top:0,behavior:'smooth'})};
+window.deleteMealRecord=async id=>{const x=meals.find(r=>r.id===id);if(!x||!canManageMeal(x)||!confirm('Delete this meal record?'))return;$('mealmsg2').textContent='Deleting…';const {error}=await sb.from('daily_meals').delete().eq('id',id);if(error){$('mealmsg2').textContent='Could not delete: '+error.message;return}resetMealForm();$('mealmsg2').textContent='Record deleted.';await refreshAll()};
+$('mealform2').onsubmit=async e=>{e.preventDefault();if(!user)return;$('mealmsg2').textContent=editingMealId?'Saving changes…':'Saving record…';const rec={person:$('person2').value,meal_date:$('date2').value,amount:Number($('amount2').value),note:$('note2').value.trim()||null};let result;if(editingMealId){const old=meals.find(x=>x.id===editingMealId);if(!old||!canManageMeal(old)){$('mealmsg2').textContent='You do not have permission to edit this record.';return}result=await sb.from('daily_meals').update(rec).eq('id',editingMealId)}else{result=await sb.from('daily_meals').insert({...rec,created_by:user.id})}if(result.error){$('mealmsg2').textContent='Could not save: '+result.error.message;return}resetMealForm();$('mealmsg2').textContent='Saved successfully and shared with all users.';await refreshAll()};
+$('fiveMonth').addEventListener('change',renderFiveMeals);
 window.openLegacyAdmin=()=>{if(!isAdmin)return;document.querySelectorAll('.tab-page').forEach(x=>x.classList.add('hidden'));$('fiveTabs').classList.add('legacy-ui');$('fivePages').classList.add('legacy-ui');$('page-admin').parentElement.classList.remove('legacy-ui');$('page-admin').classList.remove('hidden');if(!$('backFiveTabs')){const b=document.createElement('button');b.id='backFiveTabs';b.className='primary';b.textContent='← Back to five tabs';b.style.marginBottom='12px';b.onclick=()=>{ $('page-admin').classList.add('hidden');$('page-admin').parentElement.classList.add('legacy-ui');$('fiveTabs').classList.remove('legacy-ui');$('fivePages').classList.remove('legacy-ui');renderFiveTabs()};$('page-admin').prepend(b)}renderSheetEditor()};
 const oldRefreshAll=refreshAll;
 refreshAll=async()=>{await oldRefreshAll();renderFiveTabs()};
