@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Monthly Bills — Meals, Expenses, Calculation and Cards Preview</title>
+<style>
+:root{--navy:#102b4e;--teal:#159d98;--ink:#203047;--muted:#718096;--line:#dce5ef;--bg:#f2f5fb}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg)}
+body{padding:16px 12px 32px}.app{max-width:760px;width:100%;margin:auto}
+header{background:linear-gradient(135deg,#102b4e,#1a416b);color:white;border-radius:20px;padding:22px 18px;margin-bottom:16px}
+.eyebrow{font-size:11px;letter-spacing:.13em;text-transform:uppercase;opacity:.8;font-weight:700}h1{font-size:27px;margin:6px 0}.sub{font-size:14px;opacity:.85}
+.admin{margin:14px auto 0;text-align:center;border-radius:24px;padding:10px;background:#dff4f1;color:#117c78;font-weight:700;font-size:14px}
+.panel{background:white;border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px;min-width:0;box-shadow:0 3px 12px #102b4e08}
+.month-wrap{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;width:100%}.month-label{font-size:13px;font-weight:700;color:var(--muted)}
+.month-input{display:block;width:min(100%,280px);max-width:280px;min-width:0;margin:auto;text-align:center;border:1px solid var(--line);border-radius:12px;padding:13px 10px;background:white;color:var(--ink);font:600 16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:14px 0 16px}
+.nav button{display:flex;align-items:center;justify-content:center;min-width:0;min-height:78px;padding:8px 4px;border:1px solid var(--line);border-radius:14px;background:#e8eef6;color:var(--navy);font-size:12px;line-height:1.3;font-weight:700;text-align:center;white-space:normal;overflow-wrap:anywhere}
+.nav button.active{background:var(--navy);border-color:var(--navy);color:white}
+h2{font-size:20px;color:var(--navy);margin:0 0 6px}.hint{font-size:14px;line-height:1.5;color:var(--muted);margin:0 0 17px}
+.summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-bottom:20px}.metric{background:#f1f5fb;border:1px solid #e0e8f2;border-radius:16px;padding:14px 6px;text-align:center;min-width:0}
+.metric span{display:block;font-size:12px;color:var(--muted);margin-bottom:7px}.metric strong{font-size:19px;color:var(--navy)}
+.formgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}.field{width:100%;min-width:0}.field label{display:block;font-size:14px;font-weight:700;color:#52647b;margin-bottom:7px}
+.field input,.field select{display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0;min-inline-size:0;border:1px solid #cfdbe9;border-radius:13px;background:white;color:var(--ink);font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:13px 12px}
+.field input[type=date]{-webkit-appearance:none;appearance:none;display:block;width:100%;max-width:100%;min-width:0;min-inline-size:0;height:56px;margin:0;padding:0 8px;text-align:center;font-size:16px}
+.date-shell{position:relative;width:100%;height:56px;border:1px solid #cfdbe9;border-radius:13px;background:white;display:flex;align-items:center;justify-content:center;overflow:hidden}.date-shell .date-label{font-size:16px;color:var(--ink);pointer-events:none;text-align:center}.date-shell input[type=date]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1}.primary{margin-top:16px;background:var(--teal);color:white;border:0;border-radius:12px;padding:13px 18px;font-weight:700}
+.total{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:14px}.total strong{color:var(--navy)}
+.notice{background:#fff8e9;border:1px solid #f1dba7;color:#805b1e;border-radius:13px;padding:12px 14px;font-size:12px;line-height:1.5;margin-top:14px}
+@media(max-width:560px){body{padding:12px 10px 28px}header{padding:20px 16px}.panel{padding:15px}.nav{gap:6px}.nav button{font-size:11px;min-height:76px;padding:8px 3px}.metric{padding:12px 4px}.metric span{font-size:11px}.metric strong{font-size:17px}}
+
+.meal-record{border:1px solid var(--line);border-radius:13px;padding:12px;margin:10px 0;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.meal-record strong{color:var(--navy)}.record-meta{font-size:12px;color:var(--muted);margin-top:5px;overflow-wrap:anywhere}
+.record-actions{display:flex;gap:7px;flex-shrink:0}.small-btn{border:1px solid var(--line);background:#f3f6fb;color:var(--navy);padding:8px 10px;border-radius:9px;font-weight:700}
+.small-btn.delete{color:#ad3243;background:#fff6f6}.form-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.secondary{background:#edf2f7;color:var(--navy);border:0;border-radius:12px;padding:13px 18px;font-weight:700;margin-top:16px}
+.status{font-size:13px;color:#087a73;min-height:18px;margin-top:8px}.empty{font-size:13px;color:var(--muted);padding:12px 0}
+
+.meal-date-toggle{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border:0;background:transparent;font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);cursor:pointer;position:relative}
+.meal-date-toggle span:last-child{position:absolute;right:14px;color:#64748b}
+.meal-calendar{border:1px solid #dbe2eb;border-radius:13px;padding:12px;margin-top:8px;background:white;box-shadow:0 8px 18px #102b4e14}
+.meal-calendar[hidden]{display:none!important}
+.cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}.cal-head button{border:0;border-radius:9px;background:#eaf1f9;color:#102b4e;padding:7px 14px;font-size:21px}.cal-head strong{font-size:15px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}.cal-dow{font-size:11px;color:#718096;font-weight:700;text-align:center;padding:7px 0}.cal-grid button{min-width:0;min-height:39px;border:0;border-radius:9px;background:#f1f5fb;color:#203047;font-size:14px}.cal-grid button.selected{background:#102b4e;color:white}.cal-grid button.has-record{box-shadow:inset 0 -3px #159d98}.cal-legend{font-size:11px;color:#718096;margin-top:10px}
+.calc-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:18px}.calc-result{background:#e5f6f4;border:1px solid #b7e4df;border-radius:16px;padding:19px;text-align:center;margin:18px 0}.calc-result span{display:block;font-size:13px;color:#087a73;font-weight:700}.calc-result strong{display:block;font-size:30px;color:#102b4e;margin-top:7px}.calc-formula{font-size:13px;color:#52647b;line-height:1.6;background:#f4f7fb;padding:12px;border-radius:12px}.calc-row{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding:12px 0;font-size:14px}.calc-row strong{color:var(--navy);white-space:nowrap}.expense-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:20px}
+.expense-summary .metric{padding:16px 8px}
+[hidden]{display:none!important}
+
+.card-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:18px}
+.card-summary .metric{padding:16px 6px}
+.due-text{font-size:13px;color:#52647b;margin-top:5px}
+</style></head><body><main class="app">
+<header><div class="eyebrow">Household finance</div><h1>Monthly Bills</h1><div class="sub">A clear view of your household records</div></header>
+<div class="notice">Preview only — this page is not connected to Supabase and will not change your live app or records.</div>
+<div class="admin">Administrator preview · Vincent</div>
+<section class="panel"><div class="month-wrap"><label class="month-label" for="month">Month</label><input class="month-input" id="month" type="month" value="2026-11"></div></section>
+<nav class="nav" aria-label="Monthly bill sections">
+<button class="active" data-tab="meals">1. Meals</button><button data-tab="expenses">2. expenses</button><button data-tab="calculation">3. Calculation</button><button data-tab="cards">4. Cards &amp; Bills</button><button data-tab="petrol">5. Petrol &amp; Cash card</button>
+</nav>
+<section class="panel" id="content">
+<h2>Daily Meals</h2>
+<p class="hint">Record each date separately. Eileen Ezlink stays separate from Eileen's daily meals.</p>
+<div class="summary">
+ <div class="metric"><span>Vincent Meals</span><strong id="sum-v">$0.00</strong></div>
+ <div class="metric"><span>Eileen Meals</span><strong id="sum-e">$0.00</strong></div>
+ <div class="metric"><span>Eileen Ezlink</span><strong id="sum-z">$0.00</strong></div>
+</div>
+<form id="meal-form">
+ <div class="formgrid">
+  <div class="field"><label for="meal-date">Date</label><div class="date-shell"><button id="meal-date-toggle" type="button" class="meal-date-toggle" aria-expanded="false"><span id="meal-date-display">16 Nov 2026</span><span aria-hidden="true">▾</span></button><input id="meal-date" type="hidden" value="2026-11-16"></div><div id="meal-calendar" class="meal-calendar" hidden></div></div>
+  <div class="field"><label for="meal-category">Category</label><select id="meal-category"><option>Vincent Meals</option><option>Eileen Meals</option><option>Eileen Ezlink</option></select></div>
+  <div class="field"><label for="meal-amount">Amount ($)</label><input id="meal-amount" type="number" step="0.01" min="0.01" placeholder="0.00" required></div>
+  <div class="field"><label for="meal-note">Note (optional)</label><input id="meal-note" type="text" maxlength="160" placeholder="Add a note"></div>
+ </div>
+ <div class="form-actions"><button class="primary" id="save-meal" type="submit">Add record</button><button class="secondary" id="cancel-edit" type="button" hidden>Cancel edit</button></div>
+ <div class="status" id="meal-status" role="status"></div>
+</form>
+</section>
+<section class="panel" id="meal-records"><h2>Monthly records</h2><p class="hint" id="record-month-label"></p><div id="record-list"></div></section>
+
+<section class="panel" id="expense-content" hidden>
+<h2>Monthly Expenses</h2><p class="hint">Add each expense separately. This tab is for the monthly Extras / Expenses section.</p>
+<div class="expense-summary"><div class="metric"><span>Monthly Expenses Total</span><strong id="expense-total">$0.00</strong></div><div class="metric"><span>Records</span><strong id="expense-count">0</strong></div></div>
+<form id="expense-form"><div class="formgrid">
+<div class="field"><label for="expense-date-toggle">Date</label><div class="date-shell"><button id="expense-date-toggle" type="button" class="meal-date-toggle" aria-expanded="false"><span id="expense-date-display">16 Nov 2026</span><span aria-hidden="true">▾</span></button><input id="expense-date" type="hidden" value="2026-11-16"></div><div id="expense-calendar" class="meal-calendar" hidden></div></div>
+<div class="field"><label for="expense-description">Description</label><input id="expense-description" type="text" maxlength="160" placeholder="e.g. Groceries, household items" required></div>
+<div class="field"><label for="expense-amount">Amount ($)</label><input id="expense-amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></div>
+</div><div class="form-actions"><button type="submit" class="primary" id="expense-save">Add expense</button><button type="button" class="secondary" id="expense-cancel" hidden>Cancel edit</button></div><div id="expense-status" class="status" role="status"></div></form>
+</section>
+<section class="panel" id="expense-records" hidden><h2>Monthly records</h2><p class="hint" id="expense-month-label"></p><div id="expense-list"></div></section>
+<section class="panel" id="calculation-content" hidden>
+<h2>Monthly Calculation</h2><p class="hint">Automatically calculated from the selected month's Meals and Expenses. No manual entry needed.</p>
+<div class="calc-summary"><div class="metric"><span>Vincent Meals</span><strong id="calc-v">$0.00</strong></div><div class="metric"><span>Eileen Meals</span><strong id="calc-e">$0.00</strong></div><div class="metric"><span>Eileen Ezlink</span><strong id="calc-z">$0.00</strong></div><div class="metric"><span>Monthly Expenses</span><strong id="calc-x">$0.00</strong></div></div>
+<div class="calc-row"><span>Vincent Meals + Expenses</span><strong id="calc-combined">$0.00</strong></div>
+<div class="calc-row"><span>Half of Vincent Meals + Expenses</span><strong id="calc-half">$0.00</strong></div>
+<div class="calc-row"><span>Add Eileen Ezlink</span><strong id="calc-add">$0.00</strong></div>
+<div class="calc-row"><span>Less half of Eileen Meals</span><strong id="calc-less">−$0.00</strong></div>
+<div class="calc-result"><span>Amount to Transfer</span><strong id="calc-transfer">$0.00</strong></div>
+<p class="calc-formula">(Vincent Meals + Monthly Expenses) ÷ 2 + Eileen Ezlink − (Eileen Meals ÷ 2)</p>
+<p class="hint" id="calc-period" style="margin-top:14px"></p>
+</section>
+<section class="panel" id="cards-content" hidden>
+<h2>Cards &amp; Bills</h2><p class="hint">Administrator input · Credit cards and payments for the selected month. Each payment has its own amount and due date.</p>
+<div class="card-summary"><div class="metric"><span>Monthly Payments Total</span><strong id="cards-total">$0.00</strong></div><div class="metric"><span>Standalone Recurring Total</span><strong id="cards-standalone-total">$0.00</strong></div></div><p class="hint" id="cards-count" style="margin:8px 0 14px">0 records</p>
+<form id="cards-form"><div class="formgrid">
+<div class="field"><label for="cards-name">Card / Bill / Payment</label><input id="cards-name" type="text" maxlength="160" placeholder="e.g. UOB ONE card, Medisave" required></div>
+<div class="field"><label for="cards-amount">Amount ($)</label><input id="cards-amount" type="number" min="0" step="0.01" placeholder="0.00" required></div>
+<div class="field"><label for="cards-due-toggle">Due date</label><div class="date-shell"><button id="cards-due-toggle" type="button" class="meal-date-toggle" aria-expanded="false"><span id="cards-due-display">1 Nov 2026</span><span aria-hidden="true">▾</span></button><input id="cards-due" type="hidden" value="2026-11-01"></div><div id="cards-calendar" class="meal-calendar" hidden></div></div>
+<div class="field"><label for="cards-recurring">Recurring monthly</label><select id="cards-recurring"><option value="no">No — one-time payment</option><option value="yes">Yes — repeat each month</option></select></div>
+<div class="field"><label for="cards-category">Payment category</label><select id="cards-category"><option value="main">Monthly Payments — included in main total</option><option value="standalone">Standalone Recurring — separate total</option></select></div>
+<div class="field"><label for="cards-due-note">Due date / recurrence note (optional)</label><input id="cards-due-note" type="text" maxlength="120" placeholder="e.g. 21st monthly, till Feb 2027"></div>
+</div><p class="hint">Standalone Recurring payments repeat monthly and are excluded from Monthly Payments Total. Recurring payments appear automatically every month. Editing a recurring payment changes this month and future months only; past months stay unchanged. For the 29th–31st, shorter months use their last day.</p><div class="form-actions"><button type="submit" class="primary" id="cards-save">Add payment</button><button type="button" class="secondary" id="cards-cancel" hidden>Cancel edit</button></div><div class="status" id="cards-status" role="status"></div></form>
+</section>
+<section class="panel" id="cards-records" hidden><h2>Monthly records</h2><p class="hint" id="cards-month-label"></p><div id="cards-list"></div></section>
+<section class="panel" id="other-tab" hidden></section>
+
+</main>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const KEY='monthlyBillTab1PreviewV2';
+const OLD='monthlyBillTab1PreviewV1';
+const categories=['Vincent Meals','Eileen Meals','Eileen Ezlink'];
+let records=[];let editing=null;let cursor=new Date(2026,10,1);let storageAvailable=true;
+function load(){
+ try{
+  const a=localStorage.getItem(KEY)||localStorage.getItem(OLD)||'[]';
+  const parsed=JSON.parse(a);if(Array.isArray(parsed))records=parsed.filter(r=>r&&/^\d{4}-\d{2}-\d{2}$/.test(r.date)&&categories.includes(r.category)&&Number.isFinite(Number(r.amount)));
+ }catch(err){storageAvailable=false;console.warn('Preview storage unavailable',err);}
+}
+function persist(){
+ try{localStorage.setItem(KEY,JSON.stringify(records));storageAvailable=true;return true;}
+ catch(err){storageAvailable=false;console.warn('Could not persist preview',err);return false;}
+}
+function dateKey(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
+function dateLabel(key){const [y,m,d]=key.split('-').map(Number);return new Date(y,m-1,d,12).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
+function monthLabel(key){const [y,m]=key.split('-').map(Number);return new Date(y,m-1,1,12).toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
+function money(n){return '$'+Number(n).toFixed(2);}
+function status(message){$('meal-status').textContent=message;}
+function setDate(key){$('meal-date').value=key;$('meal-date-display').textContent=dateLabel(key);}
+function closeCal(){$('meal-calendar').hidden=true;$('meal-date-toggle').setAttribute('aria-expanded','false');}
+function openCal(){const [y,m]=$('meal-date').value.split('-').map(Number);cursor=new Date(y,m-1,1,12);drawCal();$('meal-calendar').hidden=false;$('meal-date-toggle').setAttribute('aria-expanded','true');}
+function drawCal(){
+ const el=$('meal-calendar');el.replaceChildren();const head=document.createElement('div');head.className='cal-head';
+ const prev=document.createElement('button');prev.type='button';prev.textContent='‹';prev.setAttribute('aria-label','Previous month');
+ const title=document.createElement('strong');title.textContent=cursor.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+ const next=document.createElement('button');next.type='button';next.textContent='›';next.setAttribute('aria-label','Next month');
+ prev.onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()-1,1,12);drawCal();};
+ next.onclick=()=>{cursor=new Date(cursor.getFullYear(),cursor.getMonth()+1,1,12);drawCal();};
+ head.append(prev,title,next);el.append(head);
+ const grid=document.createElement('div');grid.className='cal-grid';
+ for(const wd of ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']){const x=document.createElement('div');x.className='cal-dow';x.textContent=wd;grid.append(x);}
+ const year=cursor.getFullYear(),month=cursor.getMonth(),offset=(new Date(year,month,1).getDay()+6)%7;
+ for(let i=0;i<offset;i++)grid.append(document.createElement('div'));
+ const days=new Date(year,month+1,0).getDate();
+ for(let day=1;day<=days;day++){
+  const key=dateKey(year,month,day),b=document.createElement('button');b.type='button';b.textContent=day;
+  if(key===$('meal-date').value)b.classList.add('selected');
+  if(records.some(r=>r.date===key))b.classList.add('has-record');
+  b.onclick=()=>{setDate(key);closeCal();};grid.append(b);
+ }
+ el.append(grid);const legend=document.createElement('div');legend.className='cal-legend';legend.textContent='Teal underline = date with a saved meal';el.append(legend);
+}
+function resetForm(){editing=null;$('meal-form').reset();$('save-meal').textContent='Add record';$('cancel-edit').hidden=true;setDate($('month').value+'-01');closeCal();}
+function render(){
+ const month=$('month').value;
+ const visible=records.filter(r=>r.date.slice(0,7)===month).sort((a,b)=>b.date.localeCompare(a.date));
+ categories.forEach((cat,i)=>{const el=$(['sum-v','sum-e','sum-z'][i]);el.textContent=money(visible.filter(r=>r.category===cat).reduce((sum,r)=>sum+Number(r.amount),0));});
+ $('record-month-label').textContent=monthLabel(month)+' · '+visible.length+' record'+(visible.length===1?'':'s');
+ const list=$('record-list');list.replaceChildren();
+ if(!visible.length){const empty=document.createElement('p');empty.className='empty';empty.textContent='No records for this month yet.';list.append(empty);return;}
+ for(const record of visible){
+  const row=document.createElement('div');row.className='meal-record';
+  const info=document.createElement('div');const strong=document.createElement('strong');strong.textContent=dateLabel(record.date)+' · '+money(record.amount);
+  const meta=document.createElement('div');meta.className='record-meta';meta.textContent=record.category+(record.note?' · '+record.note:'');info.append(strong,meta);
+  const actions=document.createElement('div');actions.className='record-actions';
+  const edit=document.createElement('button');edit.type='button';edit.className='small-btn';edit.textContent='Edit';
+  edit.onclick=()=>{editing=record.id;setDate(record.date);$('meal-category').value=record.category;$('meal-amount').value=record.amount;$('meal-note').value=record.note||'';$('save-meal').textContent='Save changes';$('cancel-edit').hidden=false;status('Editing selected record');$('meal-form').scrollIntoView({behavior:'smooth',block:'center'});};
+  const del=document.createElement('button');del.type='button';del.className='small-btn delete';del.textContent='Delete';
+  del.onclick=()=>{if(!confirm('Delete this meal record?'))return;records=records.filter(r=>r.id!==record.id);const saved=persist();if(editing===record.id)resetForm();render();status(saved?'Record deleted.':'Record deleted from this page, but browser storage is unavailable.');};
+  actions.append(edit,del);row.append(info,actions);list.append(row);
+ }
+}
+$('meal-date-toggle').addEventListener('click',()=>{$('meal-calendar').hidden?openCal():closeCal();});
+$('meal-form').addEventListener('submit',e=>{
+ e.preventDefault();const date=$('meal-date').value,category=$('meal-category').value,amount=Number($('meal-amount').value),note=$('meal-note').value.trim();
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!categories.includes(category)||!Number.isFinite(amount)||amount<=0){status('Please enter a date, category and positive amount.');return;}
+ const previous=Boolean(editing);
+ if(editing){const existing=records.find(r=>r.id===editing);if(existing)Object.assign(existing,{date,category,amount,note});else records.push({id:editing,date,category,amount,note});}
+ else records.push({id:Date.now()+'-'+Math.random().toString(36).slice(2),date,category,amount,note});
+ const saved=persist();$('month').value=date.slice(0,7);resetForm();render();
+ status(saved?(previous?'Changes saved. Record is shown below.':'Record added. It is shown below.'):'Record is shown below, but this browser did not allow permanent preview storage.');
+ $('meal-records').scrollIntoView({behavior:'smooth',block:'start'});
+});
+$('cancel-edit').onclick=()=>{resetForm();status('Edit cancelled.');};
+$('month').addEventListener('change',()=>{resetForm();render();status('');});
+// Expenses use a separate local preview store; meals data is never rewritten by expenses.
+const EXPENSE_KEY='monthlyBillTab2ExpensesPreviewV1';
+let expenses=[],expenseEditing=null,expenseCursor=new Date(2026,10,1);
+function expenseLoad(){try{const data=JSON.parse(localStorage.getItem(EXPENSE_KEY)||'[]');if(Array.isArray(data))expenses=data.filter(r=>r&&/^\d{4}-\d{2}-\d{2}$/.test(r.date)&&typeof r.description==='string'&&Number.isFinite(Number(r.amount)));}catch(e){console.warn('Expense preview storage unavailable',e);}}
+function expensePersist(){try{localStorage.setItem(EXPENSE_KEY,JSON.stringify(expenses));return true;}catch(e){console.warn('Expense save failed',e);return false;}}
+function expenseStatus(msg){$('expense-status').textContent=msg;}
+function expenseSetDate(key){$('expense-date').value=key;$('expense-date-display').textContent=dateLabel(key);}
+function expenseCloseCal(){$('expense-calendar').hidden=true;$('expense-date-toggle').setAttribute('aria-expanded','false');}
+function expenseOpenCal(){const [y,m]=$('expense-date').value.split('-').map(Number);expenseCursor=new Date(y,m-1,1,12);expenseDrawCal();$('expense-calendar').hidden=false;$('expense-date-toggle').setAttribute('aria-expanded','true');}
+function expenseDrawCal(){
+ const el=$('expense-calendar');el.replaceChildren();const head=document.createElement('div');head.className='cal-head';
+ const prev=document.createElement('button');prev.type='button';prev.textContent='‹';prev.setAttribute('aria-label','Previous month');
+ const title=document.createElement('strong');title.textContent=expenseCursor.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+ const next=document.createElement('button');next.type='button';next.textContent='›';next.setAttribute('aria-label','Next month');
+ prev.onclick=()=>{expenseCursor=new Date(expenseCursor.getFullYear(),expenseCursor.getMonth()-1,1,12);expenseDrawCal();};
+ next.onclick=()=>{expenseCursor=new Date(expenseCursor.getFullYear(),expenseCursor.getMonth()+1,1,12);expenseDrawCal();};
+ head.append(prev,title,next);el.append(head);const grid=document.createElement('div');grid.className='cal-grid';
+ for(const wd of ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']){const d=document.createElement('div');d.className='cal-dow';d.textContent=wd;grid.append(d);}
+ const y=expenseCursor.getFullYear(),m=expenseCursor.getMonth(),offset=(new Date(y,m,1).getDay()+6)%7;
+ for(let i=0;i<offset;i++)grid.append(document.createElement('div'));
+ for(let d=1;d<=new Date(y,m+1,0).getDate();d++){
+  const key=dateKey(y,m,d),b=document.createElement('button');b.type='button';b.textContent=d;
+  if(key===$('expense-date').value)b.classList.add('selected');
+  if(expenses.some(r=>r.date===key))b.classList.add('has-record');
+  b.onclick=()=>{expenseSetDate(key);expenseCloseCal();};grid.append(b);
+ }
+ el.append(grid);const legend=document.createElement('div');legend.className='cal-legend';legend.textContent='Teal underline = date with a saved expense';el.append(legend);
+}
+function expenseReset(){expenseEditing=null;$('expense-form').reset();$('expense-save').textContent='Add expense';$('expense-cancel').hidden=true;expenseSetDate($('month').value+'-01');expenseCloseCal();}
+function expenseRender(){
+ const month=$('month').value,visible=expenses.filter(r=>r.date.slice(0,7)===month).sort((a,b)=>b.date.localeCompare(a.date));
+ $('expense-total').textContent=money(visible.reduce((sum,r)=>sum+Number(r.amount),0));$('expense-count').textContent=String(visible.length);
+ $('expense-month-label').textContent=monthLabel(month)+' · '+visible.length+' record'+(visible.length===1?'':'s');
+ const list=$('expense-list');list.replaceChildren();
+ if(!visible.length){const p=document.createElement('p');p.className='empty';p.textContent='No expenses for this month yet.';list.append(p);return;}
+ for(const r of visible){
+  const row=document.createElement('div');row.className='meal-record';const info=document.createElement('div');
+  const strong=document.createElement('strong');strong.textContent=dateLabel(r.date)+' · '+money(r.amount);
+  const meta=document.createElement('div');meta.className='record-meta';meta.textContent=r.description;info.append(strong,meta);
+  const actions=document.createElement('div');actions.className='record-actions';
+  const edit=document.createElement('button');edit.type='button';edit.className='small-btn';edit.textContent='Edit';
+  edit.onclick=()=>{expenseEditing=r.id;expenseSetDate(r.date);$('expense-description').value=r.description;$('expense-amount').value=r.amount;$('expense-save').textContent='Save changes';$('expense-cancel').hidden=false;expenseStatus('Editing selected expense');$('expense-form').scrollIntoView({behavior:'smooth',block:'center'});};
+  const del=document.createElement('button');del.type='button';del.className='small-btn delete';del.textContent='Delete';
+  del.onclick=()=>{if(!confirm('Delete this expense?'))return;expenses=expenses.filter(x=>x.id!==r.id);const saved=expensePersist();if(expenseEditing===r.id)expenseReset();expenseRender();expenseStatus(saved?'Expense deleted.':'Expense removed from this page, but preview storage is unavailable.');};
+  actions.append(edit,del);row.append(info,actions);list.append(row);
+ }
+}
+$('expense-date-toggle').addEventListener('click',()=>{$('expense-calendar').hidden?expenseOpenCal():expenseCloseCal();});
+$('expense-form').addEventListener('submit',e=>{
+ e.preventDefault();const date=$('expense-date').value,description=$('expense-description').value.trim(),amount=Number($('expense-amount').value);
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!description||!Number.isFinite(amount)||amount<=0){expenseStatus('Please enter a date, description and positive amount.');return;}
+ const wasEdit=Boolean(expenseEditing);
+ if(expenseEditing){const existing=expenses.find(r=>r.id===expenseEditing);if(existing)Object.assign(existing,{date,description,amount});else expenses.push({id:expenseEditing,date,description,amount});}
+ else expenses.push({id:Date.now()+'-'+Math.random().toString(36).slice(2),date,description,amount});
+ const saved=expensePersist();$('month').value=date.slice(0,7);expenseReset();expenseRender();render();
+ expenseStatus(saved?(wasEdit?'Expense updated and shown below.':'Expense added and shown below.'):'Expense shown below, but browser storage is unavailable.');
+ $('expense-records').scrollIntoView({behavior:'smooth',block:'start'});
+});
+$('expense-cancel').onclick=()=>{expenseReset();expenseStatus('Edit cancelled.');};
+// Preserve the existing Meals logic and navigation while adding a functional Expenses tab.
+$('month').addEventListener('change',()=>{expenseReset();expenseRender();expenseStatus('');});
+$('record-list').addEventListener('click',()=>queueMicrotask(renderCalculation));
+$('expense-list').addEventListener('click',()=>queueMicrotask(renderCalculation));
+function renderCalculation(){
+ const month=$('month').value;
+ const mealTotals={'Vincent Meals':0,'Eileen Meals':0,'Eileen Ezlink':0};
+ for(const r of records){if(r.date.slice(0,7)===month&&Object.prototype.hasOwnProperty.call(mealTotals,r.category))mealTotals[r.category]+=Number(r.amount)||0;}
+ const v=mealTotals['Vincent Meals'],e=mealTotals['Eileen Meals'],z=mealTotals['Eileen Ezlink'];
+ const x=expenses.filter(r=>r.date.slice(0,7)===month).reduce((sum,r)=>sum+(Number(r.amount)||0),0);
+ const transfer=(v+x)/2+z-e/2;
+ $('calc-v').textContent=money(v);$('calc-e').textContent=money(e);$('calc-z').textContent=money(z);$('calc-x').textContent=money(x);
+ $('calc-combined').textContent=money(v+x);$('calc-half').textContent=money((v+x)/2);
+ $('calc-add').textContent='+'+money(z);$('calc-less').textContent='−'+money(e/2);
+ $('calc-transfer').textContent=(transfer<0?'−':'')+money(Math.abs(transfer));
+ $('calc-period').textContent='Calculation for '+monthLabel(month)+' · Preview data only';
+}
+$('meal-form').addEventListener('submit',()=>renderCalculation());
+$('expense-form').addEventListener('submit',()=>renderCalculation());
+$('month').addEventListener('change',renderCalculation);
+// Tab 4: recurring payments use effective-dated revisions, preserving earlier months.
+const CARDS_KEY='monthlyBillTab4CardsPreviewV1';
+const SERIES_KEY='monthlyBillTab4RecurringSeriesV1';
+let cards=[],series=[],cardsEditing=null,cardsCursor=new Date(2026,10,1,12);
+function cardsLoad(){try{const data=JSON.parse(localStorage.getItem(CARDS_KEY)||'[]');if(Array.isArray(data))cards=data.filter(r=>r&&/^\d{4}-\d{2}-\d{2}$/.test(r.due)&&typeof r.name==='string'&&Number.isFinite(Number(r.amount)));}catch(e){console.warn('Cards preview storage unavailable',e);}
+try{const data=JSON.parse(localStorage.getItem(SERIES_KEY)||'[]');if(Array.isArray(data))series=data.filter(x=>x&&x.id&&Array.isArray(x.revisions));}catch(e){console.warn('Recurring preview storage unavailable',e);}}
+function cardsPersist(){try{localStorage.setItem(CARDS_KEY,JSON.stringify(cards));localStorage.setItem(SERIES_KEY,JSON.stringify(series));return true;}catch(e){console.warn('Cards save failed',e);return false;}}
+function cardsStatus(msg){$('cards-status').textContent=msg;}
+function cardsSetDate(key){$('cards-due').value=key;$('cards-due-display').textContent=dateLabel(key);}
+function cardsCloseCal(){$('cards-calendar').hidden=true;$('cards-due-toggle').setAttribute('aria-expanded','false');}
+function cardsOpenCal(){const [y,m]=$('cards-due').value.split('-').map(Number);cardsCursor=new Date(y,m-1,1,12);cardsDrawCal();$('cards-calendar').hidden=false;$('cards-due-toggle').setAttribute('aria-expanded','true');}
+function monthDue(month,day){const [y,m]=month.split('-').map(Number);const max=new Date(y,m,0).getDate();return month+'-'+String(Math.min(day,max)).padStart(2,'0');}
+function effectiveRevision(item,month){return item.revisions.filter(r=>r.from<=month).sort((a,b)=>b.from.localeCompare(a.from))[0]||null;}
+function cardsVisible(month){
+ const result=cards.filter(r=>r.month===month).map(r=>({...r,kind:'once'}));
+ for(const item of series){if(item.start>month||(item.end&&month>=item.end))continue;const r=effectiveRevision(item,month);if(!r||r.disabled)continue;
+ result.push({id:item.id,kind:'recurring',month,due:monthDue(month,r.day),name:r.name,amount:r.amount,note:r.note||'',day:r.day,category:r.category||'main'});}
+ return result.sort((a,b)=>a.due.localeCompare(b.due));
+}
+function cardsDrawCal(){
+ const el=$('cards-calendar');el.replaceChildren();const head=document.createElement('div');head.className='cal-head';
+ const prev=document.createElement('button');prev.type='button';prev.textContent='‹';prev.setAttribute('aria-label','Previous month');
+ const title=document.createElement('strong');title.textContent=cardsCursor.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+ const next=document.createElement('button');next.type='button';next.textContent='›';next.setAttribute('aria-label','Next month');
+ prev.onclick=()=>{cardsCursor=new Date(cardsCursor.getFullYear(),cardsCursor.getMonth()-1,1,12);cardsDrawCal();};
+ next.onclick=()=>{cardsCursor=new Date(cardsCursor.getFullYear(),cardsCursor.getMonth()+1,1,12);cardsDrawCal();};
+ head.append(prev,title,next);el.append(head);const grid=document.createElement('div');grid.className='cal-grid';
+ for(const wd of ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']){const d=document.createElement('div');d.className='cal-dow';d.textContent=wd;grid.append(d);}
+ const y=cardsCursor.getFullYear(),m=cardsCursor.getMonth(),offset=(new Date(y,m,1).getDay()+6)%7;
+ for(let i=0;i<offset;i++)grid.append(document.createElement('div'));
+ const dates=new Set(cardsVisible(dateKey(y,m,1).slice(0,7)).map(r=>r.due));
+ for(let d=1;d<=new Date(y,m+1,0).getDate();d++){
+  const key=dateKey(y,m,d),b=document.createElement('button');b.type='button';b.textContent=d;
+  if(key===$('cards-due').value)b.classList.add('selected');
+  if(dates.has(key))b.classList.add('has-record');
+  b.onclick=()=>{cardsSetDate(key);cardsCloseCal();};grid.append(b);
+ }
+ el.append(grid);const legend=document.createElement('div');legend.className='cal-legend';legend.textContent='Teal underline = date with a saved payment';el.append(legend);
+}
+function cardsReset(){cardsEditing=null;$('cards-recurring').disabled=false;$('cards-category').disabled=false;$('cards-form').reset();$('cards-save').textContent='Add payment';$('cards-cancel').hidden=true;cardsSetDate($('month').value+'-01');cardsCloseCal();}
+function cardsRender(){
+ const month=$('month').value,visible=cardsVisible(month);
+ $('cards-total').textContent=money(visible.filter(r=>(r.category||'main')!=='standalone').reduce((sum,r)=>sum+Number(r.amount),0));$('cards-standalone-total').textContent=money(visible.filter(r=>r.category==='standalone').reduce((sum,r)=>sum+Number(r.amount),0));$('cards-count').textContent=visible.length+' record'+(visible.length===1?'':'s')+' this month';
+ $('cards-month-label').textContent=monthLabel(month)+' · '+visible.length+' record'+(visible.length===1?'':'s');
+ const list=$('cards-list');list.replaceChildren();
+ if(!visible.length){const p=document.createElement('p');p.className='empty';p.textContent='No card or bill records for this month yet.';list.append(p);return;}
+ for(const r of visible){
+  const row=document.createElement('div');row.className='meal-record';const info=document.createElement('div');
+  const strong=document.createElement('strong');strong.textContent=r.name+' · '+money(r.amount);
+  const meta=document.createElement('div');meta.className='record-meta';meta.textContent='Due: '+dateLabel(r.due)+(r.category==='standalone'?' · Standalone Recurring':r.kind==='recurring'?' · Repeats monthly':' · One-time')+(r.note?' · '+r.note:'');info.append(strong,meta);
+  const actions=document.createElement('div');actions.className='record-actions';
+  const edit=document.createElement('button');edit.type='button';edit.className='small-btn';edit.textContent='Edit';
+  edit.onclick=()=>{cardsEditing={id:r.id,kind:r.kind,month};cardsSetDate(r.due);$('cards-name').value=r.name;$('cards-amount').value=r.amount;$('cards-due-note').value=r.note||'';$('cards-recurring').value=r.kind==='recurring'?'yes':'no';$('cards-recurring').disabled=true;$('cards-category').value=r.category||'main';$('cards-category').disabled=r.kind==='once';$('cards-save').textContent='Save changes';$('cards-cancel').hidden=false;cardsStatus(r.kind==='recurring'?'Changes will apply from '+monthLabel(month)+' onward. Earlier months stay unchanged.':'Editing selected payment');$('cards-form').scrollIntoView({behavior:'smooth',block:'center'});};
+  const del=document.createElement('button');del.type='button';del.className='small-btn delete';del.textContent=r.kind==='recurring'?'Stop':'Delete';
+  del.onclick=()=>{
+   if(r.kind==='recurring'){
+    if(!confirm('Stop this recurring payment from '+monthLabel(month)+' onward? Earlier months will remain unchanged.'))return;
+    const item=series.find(x=>x.id===r.id);if(!item)return;item.end=month;
+   }else{if(!confirm('Delete this card or bill record?'))return;cards=cards.filter(x=>x.id!==r.id);}
+   const saved=cardsPersist();if(cardsEditing&&cardsEditing.id===r.id)cardsReset();cardsRender();cardsStatus(saved?'Payment updated.':'Changed on screen, but browser storage is unavailable.');
+  };
+  actions.append(edit,del);row.append(info,actions);list.append(row);
+ }
+}
+$('cards-due-toggle').addEventListener('click',()=>{$('cards-calendar').hidden?cardsOpenCal():cardsCloseCal();});
+$('cards-form').addEventListener('submit',e=>{
+ e.preventDefault();const due=$('cards-due').value,month=due.slice(0,7),name=$('cards-name').value.trim(),amount=Number($('cards-amount').value),note=$('cards-due-note').value.trim(),category=$('cards-category').value,recurring=$('cards-recurring').value==='yes';
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(due)||!name||!Number.isFinite(amount)||amount<0){cardsStatus('Please enter a payment name, valid due date and amount.');return;}
+ if(category==='standalone'&&!recurring){cardsStatus('Standalone payments must be recurring monthly. Choose Yes for Recurring monthly.');return;}
+ const day=Number(due.slice(-2));const wasEdit=Boolean(cardsEditing);
+ if(cardsEditing){
+  if(cardsEditing.kind==='recurring'){
+   const item=series.find(x=>x.id===cardsEditing.id);if(!item){cardsStatus('Recurring payment not found.');return;}
+   const from=cardsEditing.month;item.revisions=item.revisions.filter(r=>r.from<from);item.revisions.push({from,name,amount,note,day,category});
+  }else{
+   const existing=cards.find(r=>r.id===cardsEditing.id);if(!existing){cardsStatus('Payment not found.');return;}
+   Object.assign(existing,{month,due,name,amount,note,category});
+  }
+ }else if(recurring){series.push({id:Date.now()+'-'+Math.random().toString(36).slice(2),start:month,end:null,revisions:[{from:month,name,amount,note,day,category}]});}
+ else cards.push({id:Date.now()+'-'+Math.random().toString(36).slice(2),month,due,name,amount,note,category});
+ const saved=cardsPersist();const displayMonth=cardsEditing&&cardsEditing.kind==='recurring'?cardsEditing.month:month;
+ $('month').value=displayMonth;cardsReset();cardsRender();cardsStatus(saved?(wasEdit?'Changes saved.':'Payment added.'): 'Payment shown here, but browser storage is unavailable.');
+ $('cards-records').scrollIntoView({behavior:'smooth',block:'start'});
+});
+$('cards-category').addEventListener('change',()=>{if($('cards-category').value==='standalone')$('cards-recurring').value='yes';});
+$('cards-recurring').addEventListener('change',()=>{if($('cards-category').value==='standalone'&&$('cards-recurring').value==='no')$('cards-category').value='main';});
+$('cards-cancel').onclick=()=>{cardsReset();cardsStatus('Edit cancelled.');};
+$('month').addEventListener('change',()=>{cardsReset();cardsRender();cardsStatus('');});
+const otherTabs={petrol:['Petrol & Cash Card','This tab will be built after Cards & Bills.']};
+document.querySelectorAll('.nav button').forEach(button=>button.addEventListener('click',()=>{
+ document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));button.classList.add('active');
+ const tab=button.dataset.tab,meals=tab==='meals',expense=tab==='expenses',calculation=tab==='calculation',cardTab=tab==='cards';
+ $('content').hidden=!meals;$('meal-records').hidden=!meals;$('expense-content').hidden=!expense;$('expense-records').hidden=!expense;$('calculation-content').hidden=!calculation;$('cards-content').hidden=!cardTab;$('cards-records').hidden=!cardTab;if(calculation)renderCalculation();if(cardTab)cardsRender();
+ const other=$('other-tab');other.hidden=meals||expense||calculation||cardTab;
+ if(!other.hidden){const item=otherTabs[tab];other.replaceChildren();const h=document.createElement('h2');h.textContent=item[0];const p=document.createElement('p');p.className='hint';p.textContent=item[1];other.append(h,p);}
+}));
+expenseLoad();expenseReset();expenseRender();cardsLoad();cardsReset();cardsRender();
+load();resetForm();render();renderCalculation();
+})();
+</script></body></html>
