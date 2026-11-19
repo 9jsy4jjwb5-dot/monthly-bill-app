@@ -59,6 +59,14 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 .meal-records-card .entry .row.between>div:last-child{text-align:right;flex-shrink:0}
 .meal-records-card .entry button{padding:7px 10px;font-size:12px}
 .meal-records-card .entry .row{justify-content:flex-end;gap:5px}
+/* Compact month selector and stable two-column meal record layout */
+.month-selector{gap:5px;margin:2px auto 10px}
+.month-selector input{width:min(100%,205px);max-width:205px;min-height:40px;padding:7px 10px}
+.meal-records-card .entry>.row.between{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;justify-content:initial;gap:10px;width:100%}
+.meal-records-card .entry>.row.between>div:first-child{min-width:0;text-align:left;overflow-wrap:anywhere}
+.meal-records-card .entry>.row.between>div:last-child{min-width:0;text-align:right;justify-self:end}
+.meal-records-card .entry>.row.between>div:last-child>.row{display:flex;justify-content:flex-end;flex-wrap:nowrap;gap:5px}
+.meal-records-card .entry{padding:12px 0}
 @media(max-width:370px){#mealStats2{gap:5px}#mealStats2 .stat{padding:10px 3px}.meal-form-card .grid{gap:8px}}
 </style>
 </head><body>
