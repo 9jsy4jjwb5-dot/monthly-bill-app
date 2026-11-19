@@ -41,6 +41,25 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 .new-table{min-width:520px;width:max-content;max-width:none;}
 .tablewrap table{width:max-content;min-width:100%;}
 .sheetbar,.tabs{max-width:100%;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;}
+
+/* Daily Meals layout alignment: presentation only, no data changes */
+.month-selector{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;margin:8px auto 16px;text-align:center}
+.month-selector label{margin:0;color:#65736c;font-size:13px;font-weight:600}
+.month-selector input{display:block;width:min(100%,220px);max-width:220px;min-height:44px;text-align:center;text-align-last:center;padding:9px 12px;background:white;font-size:15px}
+.meal-summary-card{padding:12px}
+#mealStats2{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0!important}
+#mealStats2 .stat{min-width:0;padding:12px 5px;text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:84px}
+#mealStats2 .muted{font-size:clamp(10px,2.8vw,13px);line-height:1.25;overflow-wrap:anywhere}
+#mealStats2 .num{font-size:clamp(15px,4.2vw,22px);line-height:1.2;white-space:nowrap;font-variant-numeric:tabular-nums}
+.meal-form-card .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.meal-form-card .grid>div{min-width:0}
+.meal-form-card input,.meal-form-card select{min-width:0;width:100%;height:46px;padding:10px;font-size:15px}
+.meal-records-card .entry .row.between{flex-wrap:nowrap;align-items:center;gap:8px}
+.meal-records-card .entry .row.between>div{min-width:0}
+.meal-records-card .entry .row.between>div:last-child{text-align:right;flex-shrink:0}
+.meal-records-card .entry button{padding:7px 10px;font-size:12px}
+.meal-records-card .entry .row{justify-content:flex-end;gap:5px}
+@media(max-width:370px){#mealStats2{gap:5px}#mealStats2 .stat{padding:10px 3px}.meal-form-card .grid{gap:8px}}
 </style>
 </head><body>
 <header><div class="eyebrow">Shared household tracker</div><h1>Monthly Bills</h1><p>Daily meals, monthly records and bills in one place.</p></header>
@@ -57,9 +76,9 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 <button class="tab" data-five="4">4 · Cards & Bills</button>
 <button class="tab" data-five="5">5 · Petrol & Cash</button>
 </nav>
-<div class="row between" style="margin:0 0 12px"><div class="muted">Selected month</div><div style="width:170px"><input id="fiveMonth" type="month"></div></div>
+<div class="month-selector"><label for="fiveMonth">Selected month</label><input id="fiveMonth" type="month"></div>
 <div id="fivePages">
-<section id="five-1" class="tab-page"><div class="card"><h2 class="section-title">Daily meals</h2><p class="muted">All shared users can add daily meal records.</p><form id="mealform2"><div class="grid"><div><label>Person</label><select id="person2"><option>Vincent</option><option>Eileen</option><option>Eileen Ezlink</option></select></div><div><label>Date</label><input id="date2" type="date" required></div><div><label>Amount (SGD)</label><input id="amount2" type="number" min="0.01" step="0.01" required placeholder="0.00"></div><div><label>Note (optional)</label><input id="note2" maxlength="120" placeholder="Lunch / dinner"></div></div><button class="primary" type="submit" style="width:100%;margin-top:14px">Add meal</button><button type="button" id="cancelMealEdit2" class="hidden" style="margin-top:8px">Cancel edit</button><p id="mealmsg2" class="muted"></p></form></div><div class="card"><div class="grid" id="mealStats2" style="margin-bottom:14px"></div><div class="row between"><h2 class="section-title">Meal records</h2><span class="pill" id="mealcount2">0 entries</span></div><div id="fiveMeals"></div></div></section>
+<section id="five-1" class="tab-page"><div class="card meal-summary-card"><div class="grid" id="mealStats2"></div></div><div class="card meal-form-card"><h2 class="section-title">Daily meals</h2><p class="muted">All shared users can add daily meal records.</p><form id="mealform2"><div class="grid"><div><label>Person</label><select id="person2"><option>Vincent</option><option>Eileen</option><option>Eileen Ezlink</option></select></div><div><label>Date</label><input id="date2" type="date" required></div><div><label>Amount (SGD)</label><input id="amount2" type="number" min="0.01" step="0.01" required placeholder="0.00"></div><div><label>Note (optional)</label><input id="note2" maxlength="120" placeholder="Lunch / dinner"></div></div><button class="primary" type="submit" style="width:100%;margin-top:14px">Add meal</button><button type="button" id="cancelMealEdit2" class="hidden" style="margin-top:8px">Cancel edit</button><p id="mealmsg2" class="muted"></p></form></div><div class="card meal-records-card"><div class="row between"><h2 class="section-title">Meal records</h2><span class="pill" id="mealcount2">0 entries</span></div><div id="fiveMeals"></div></div></section>
 <section id="five-2" class="tab-page hidden"><div class="card"><h2 class="section-title">Monthly expenses</h2><p class="muted">Administrator input · Standard users can view.</p><div id="fiveExpenses"></div><div id="edit2"></div></div></section>
 <section id="five-3" class="tab-page hidden"><div class="card"><h2 class="section-title">Monthly calculation</h2><p class="muted">Calculated automatically from the selected month's meal and expense records.</p><div id="fiveCalc"></div></div></section>
 <section id="five-4" class="tab-page hidden"><div class="card"><h2 class="section-title">Credit cards & payments</h2><p class="muted">Administrator input · Standard users can view.</p><div id="fiveCards"></div><div id="edit4"></div></div></section>
