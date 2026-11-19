@@ -303,7 +303,7 @@ function renderFiveTabs(){
      const entry=makeEntry(name,row[amountCol],row[dueCol]);
      // Standalone requires explicit labeling; do not guess from bill names.
      if(/standalone|separate recurring|excluded from (?:monthly )?total/i.test(entry.name+' '+entry.due))standaloneEntries.push(entry);
-     else if(/monthly|every month|per month|recurring/i.test(entry.due+' '+entry.name))recurringEntries.push(entry);
+     else if(label==='car insurance'||/monthly|every month|per month|recurring/i.test(entry.due+' '+entry.name))recurringEntries.push(entry);
      else oneTimeEntries.push(entry);
    }
  }
@@ -318,8 +318,12 @@ function renderFiveTabs(){
  const oneTimeMarkup=`<section class="bill-section"><h3 class="bill-section-title">1. One-Time Payments</h3><div class="bill-list">${cardRows.map(x=>billItem(x)).join('')}${cardFooter?billItem(cardFooter,true):''}${extraOneTime.map(x=>billItem(x)).join('')}${!oneTimeEntries.length?'<div class="bill-empty">No one-time payments found.</div>':''}</div></section>`;
  const recurringMarkup=billSection('2. Recurring Monthly Payments',recurringEntries,recurringEntries.length?{name:'Recurring monthly total',numeric:sumEntries(recurringEntries)}:null,'No payments explicitly marked as recurring in this worksheet.');
  const standaloneMarkup=billSection('3. Standalone Recurring Payments',standaloneEntries,{name:'Standalone recurring total',numeric:sumEntries(standaloneEntries)},'No standalone recurring payments identified in this worksheet.');
- const billNotice=normalizedSheet!==requestedSheet?`<p class="notice" style="margin:0 0 12px">No workbook sheet matched ${esc(requestedLabel)}. Showing saved worksheet <strong>${esc(actualSheet)}</strong> instead; these are not confirmed ${esc(requestedLabel)} bills.</p>`:'';
- $('fiveCards').innerHTML=billNotice+oneTimeMarkup+recurringMarkup+standaloneMarkup+'<p class="muted" style="margin:8px 0 0">Recurring items are grouped when the workbook explicitly says monthly or recurring. Other items remain in one-time payments until classified. This view does not create or stop recurring schedules.</p>';
+ const hasCardSheet=normalizedSheet===requestedSheet;
+ const billNotice=!hasCardSheet?`<p class="notice" style="margin:0 0 12px">${esc(requestedLabel)}: <strong>$0.00 — No record entered</strong>. The saved ${esc(actualSheet)} workbook belongs to a different month and is not included here.</p>`:'';
+ $('fiveCards').innerHTML=hasCardSheet
+   ?oneTimeMarkup+recurringMarkup+standaloneMarkup+'<p class="muted" style="margin:8px 0 0">Car Insurance is classified as recurring. Other items are grouped using the recurring labels in the workbook. This view does not create or stop recurring schedules.</p>'
+   :billNotice+`<div class="stat" style="margin-bottom:12px;text-align:center"><div class="muted">Credit cards & payments — ${esc(requestedLabel)}</div><div class="num">$0.00</div></div>`;
+
  $('edit4').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
 
  // Tab 5: workbook columns R:T (array indexes 16 and 18 after the blank leading column is omitted).
