@@ -92,6 +92,14 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 #fiveExpenses .new-table th:first-child,#fiveExpenses .new-table td:first-child{width:59%;text-align:left}
 #fiveExpenses .new-table th:last-child,#fiveExpenses .new-table td:last-child{width:41%;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 @media(max-width:390px){#fiveExpenses .new-table th,#fiveExpenses .new-table td{padding:10px 7px;font-size:12px}}
+
+/* Tab 3: phone-width calculation table; does not change other tabs. */
+#fiveCalc .new-table-wrap{width:100%;max-width:100%;overflow-x:hidden;overflow-y:visible;touch-action:pan-y}
+#fiveCalc .new-table{width:100%;min-width:0;max-width:100%;table-layout:fixed;border-collapse:collapse;white-space:normal}
+#fiveCalc .new-table th,#fiveCalc .new-table td{box-sizing:border-box;min-width:0;max-width:none;padding:11px 9px;overflow-wrap:anywhere;vertical-align:middle}
+#fiveCalc .new-table th:first-child,#fiveCalc .new-table td:first-child{width:62%;text-align:left}
+#fiveCalc .new-table th:last-child,#fiveCalc .new-table td:last-child{width:38%;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+@media(max-width:390px){#fiveCalc .new-table th,#fiveCalc .new-table td{padding:10px 7px;font-size:12px}}
 </style>
 </head><body>
 <header><div class="eyebrow">Shared household tracker</div><h1>Monthly Bills</h1><p>Daily meals, monthly records and bills in one place.</p></header>
@@ -220,14 +228,33 @@ function renderFiveTabs(){
  const expenseDisplay=expenseRows.length?[...expenseRows,['<strong>Total</strong>',`<strong>${money(expenseTotal)}</strong>`]]:[['No expense entries found','—']];
  $('fiveExpenses').innerHTML=sourceNotice+totalCard+tableHtml(['Expense','Amount (SGD)'],expenseDisplay);
  $('edit2').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
- // Tab 3: formula-led summary. Recompute from visible source figures.
+ // Tab 3: Eileen-to-Vincent transfer. Use ONLY the selected month's
+ // Supabase meal records and an exact matching workbook sheet for expenses.
  const mealList=meals.filter(x=>x.meal_date.startsWith(monthStart()));
  const vin=mealList.filter(x=>x.person==='Vincent').reduce((a,x)=>a+Number(x.amount),0);
  const eil=mealList.filter(x=>x.person==='Eileen').reduce((a,x)=>a+Number(x.amount),0);
- const ez=rows.slice(3,34).reduce((sum,row)=>sum+Number(String(row?.[3]??'').replace(/[$,]/g,'' )||0),0);
- const billTotal=expenseTotal;
- const calcRows=[['Vincent daily meals',money(vin)],['Eileen daily meals',money(eil)],['Total meals',money(vin+eil)],['Divided by 2',money((vin+eil)/2)],['Eileen Ezlink adjustment',money(ez)],['Monthly expenses total',money(billTotal)],['Estimated transfer',money((vin+eil)/2+ez)]];
- $('fiveCalc').innerHTML=tableHtml(['Calculation','Amount'],calcRows.map(r=>[r[0],`<strong>${r[1]}</strong>`]))+'<p class="muted">Meal totals use shared entries. Monthly expense totals use the selected workbook sheet. The transfer figure is an estimate based on the displayed source amounts.</p>';
+ const ez=mealList.filter(x=>x.person==='Eileen Ezlink').reduce((a,x)=>a+Number(x.amount),0);
+ const hasMatchingSheet=normalizedSheet===requestedSheet;
+ const billTotal=hasMatchingSheet?expenseTotal:0;
+ const transfer=(vin+billTotal)/2+ez-eil/2;
+ const calcRows=[
+   ['Vincent meals',money(vin)],
+   ['Monthly expenses',money(billTotal)],
+   ['Vincent meals + expenses',money(vin+billTotal)],
+   ['Divide by 2',money((vin+billTotal)/2)],
+   ['Add Eileen Ezlink',money(ez)],
+   ['Deduct half Eileen meals',`− ${money(eil/2)}`],
+   ['<strong>Eileen to Transfer Vincent</strong>',`<strong>${money(transfer)}</strong>`]
+ ];
+ const noExpensesNotice=!hasMatchingSheet
+   ?`<p class="notice" style="margin:0 0 12px">Monthly expenses: <strong>$0.00 — No record entered</strong> for ${esc(requestedLabel)}. The saved ${esc(actualSheet)} workbook is not included in this calculation.</p>`
+   :expenseRows.length===0
+     ?'<p class="notice" style="margin:0 0 12px">Monthly expenses: <strong>$0.00 — No record entered</strong>.</p>'
+     :`<p class="muted" style="margin:0 0 12px">Expenses from ${esc(actualSheet)}; meals and Ezlink from ${esc(requestedLabel)}.</p>`;
+ $('fiveCalc').innerHTML=noExpensesNotice+
+   `<div class="stat" style="margin-bottom:12px;text-align:center"><div class="muted">Eileen to Transfer Vincent</div><div class="num">${money(transfer)}</div></div>`+
+   tableHtml(['Calculation','Amount (SGD)'],calcRows)+
+   '<p class="muted" style="margin-top:12px">Formula: ((Vincent meals + monthly expenses) ÷ 2) + Eileen Ezlink − (Eileen meals ÷ 2). All values use the selected month.</p>';
  // Tab 4: Find the credit-card header by its label instead of assuming fixed
  // column positions. Some imported worksheets omit the leading blank Excel column.
  const norm=v=>String(v??'').trim().toLowerCase();
