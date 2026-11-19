@@ -173,11 +173,45 @@ function renderFiveTabs(){
  activeSheet=sh.sheet_name;const rows=sh.rows||[];
  // Tab 1 uses the shared daily_meals table, not a duplicate workbook copy.
  renderFiveMeals();
- // Tab 2: monthly expenses are in Excel columns G:H (array indexes 6:7).
+ // Tab 2: source workbook has expense labels and amounts in adjacent columns.
+ // Detect their positions within the expenses area, since imported sheets can
+ // have different leading blank columns. Include the first expense row.
+ const parseExpenseAmount=v=>{
+   const t=String(v??'').trim();
+   if(!/^\$?\s*-?[\d,]+(?:\.\d{1,2})?$/.test(t))return null;
+   const n=Number(t.replace(/[$,\s]/g,''));return Number.isFinite(n)?n:null;
+ };
+ const candidateColumns=[];
+ for(let c=4;c<=8;c++){
+   let score=0;
+   for(let r=2;r<Math.min(rows.length,34);r++){
+     const name=String(cell(rows,r,c)??'').trim();
+     if(name&&!/^(total|expense|amount|item:?|list)$/i.test(name)&&parseExpenseAmount(cell(rows,r,c+1))!==null)score++;
+   }
+   candidateColumns.push({c,score});
+ }
+ candidateColumns.sort((a,b)=>b.score-a.score);
+ const expenseCol=candidateColumns[0]?.score>0?candidateColumns[0].c:null;
  const expenseRows=[];let expenseTotal=0;
- for(let r=3;r<34;r++){const name=cell(rows,r,6),amount=cell(rows,r,7);if(name!==''&&name!=null){const n=Number(String(amount??'').replace(/[$,]/g,''))||0;expenseTotal+=n;expenseRows.push([esc(name),fmt(amount)])}}
- const expenseDisplay=expenseRows.length?[...expenseRows,['Total',money(expenseTotal)]]:[['No expenses','—']];
- $('fiveExpenses').innerHTML=tableHtml(['Expense','Amount'],expenseDisplay);
+ if(expenseCol!==null){
+   for(let r=2;r<Math.min(rows.length,34);r++){
+     const name=String(cell(rows,r,expenseCol)??'').trim();
+     const n=parseExpenseAmount(cell(rows,r,expenseCol+1));
+     if(!name||/^(total|expense|amount|item:?|list)$/i.test(name)||n===null)continue;
+     expenseTotal+=n;expenseRows.push([esc(name),money(n)]);
+   }
+ }
+ const requestedMonth=monthStart();
+ const requestedLabel=new Date(requestedMonth+'-01T12:00:00').toLocaleDateString('en-SG',{month:'long',year:'numeric'});
+ const actualSheet=sh.sheet_name;
+ const normalizedSheet=actualSheet.toLowerCase().replace(/[^a-z0-9]/g,'');
+ const requestedSheet=new Date(requestedMonth+'-01T12:00:00').toLocaleDateString('en-US',{month:'short'}).toLowerCase()+requestedMonth.slice(2,4);
+ const sourceNotice=normalizedSheet!==requestedSheet
+   ?`<p class="notice" style="margin:0 0 12px">No workbook sheet matched ${esc(requestedLabel)}. Showing saved worksheet <strong>${esc(actualSheet)}</strong> instead; these are not confirmed ${esc(requestedLabel)} expenses.</p>`
+   :`<p class="muted" style="margin:0 0 12px">Workbook: ${esc(actualSheet)}</p>`;
+ const totalCard=expenseRows.length?`<div class="stat" style="margin-bottom:12px;text-align:center"><div class="muted">Workbook expenses total</div><div class="num">${money(expenseTotal)}</div></div>`:'';
+ const expenseDisplay=expenseRows.length?[...expenseRows,['<strong>Total</strong>',`<strong>${money(expenseTotal)}</strong>`]]:[['No expense entries found','—']];
+ $('fiveExpenses').innerHTML=sourceNotice+totalCard+tableHtml(['Expense','Amount (SGD)'],expenseDisplay);
  $('edit2').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
  // Tab 3: formula-led summary. Recompute from visible source figures.
  const mealList=meals.filter(x=>x.meal_date.startsWith(monthStart()));
