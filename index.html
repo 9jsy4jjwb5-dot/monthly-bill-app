@@ -100,6 +100,20 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 #fiveCalc .new-table th:first-child,#fiveCalc .new-table td:first-child{width:62%;text-align:left}
 #fiveCalc .new-table th:last-child,#fiveCalc .new-table td:last-child{width:38%;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 @media(max-width:390px){#fiveCalc .new-table th,#fiveCalc .new-table td{padding:10px 7px;font-size:12px}}
+
+/* Tab 4: stacked, phone-width bill rows. Other tabs are unchanged. */
+#fiveCards .bill-section{margin:0 0 17px}
+#fiveCards .bill-section-title{font-size:15px;font-weight:750;color:var(--navy);margin:14px 0 8px}
+#fiveCards .bill-list{border:1px solid #e1e8f0;border-radius:13px;overflow:hidden;background:white}
+#fiveCards .bill-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 11px;border-bottom:1px solid #e1e8f0;min-width:0}
+#fiveCards .bill-item:last-child{border-bottom:0}
+#fiveCards .bill-item-main{min-width:0;flex:1;overflow-wrap:anywhere}
+#fiveCards .bill-item-name{font-size:14px;font-weight:650;color:var(--navy)}
+#fiveCards .bill-item-due{font-size:12px;color:#65736c;margin-top:4px;overflow-wrap:anywhere}
+#fiveCards .bill-item-amount{flex-shrink:0;text-align:right;font-size:14px;font-weight:750;font-variant-numeric:tabular-nums}
+#fiveCards .bill-total{background:#f1f5fa}
+#fiveCards .bill-total .bill-item-name{font-weight:750}
+#fiveCards .bill-empty{font-size:13px;color:#65736c;padding:12px}
 </style>
 </head><body>
 <header><div class="eyebrow">Shared household tracker</div><h1>Monthly Bills</h1><p>Daily meals, monthly records and bills in one place.</p></header>
@@ -255,44 +269,60 @@ function renderFiveTabs(){
    `<div class="stat" style="margin-bottom:12px;text-align:center"><div class="muted">Eileen to Transfer Vincent</div><div class="num">${money(transfer)}</div></div>`+
    tableHtml(['Calculation','Amount (SGD)'],calcRows)+
    '<p class="muted" style="margin-top:12px">Formula: ((Vincent meals + monthly expenses) ÷ 2) + Eileen Ezlink − (Eileen meals ÷ 2). All values use the selected month.</p>';
- // Tab 4: Find the credit-card header by its label instead of assuming fixed
- // column positions. Some imported worksheets omit the leading blank Excel column.
+ // Tab 4: display due dates below bill names and keep recurring items
+ // after one-time payments. Classification uses only explicit workbook text;
+ // a due date by itself is not proof that a payment recurs.
  const norm=v=>String(v??'').trim().toLowerCase();
  const headerRow=rows.findIndex(row=>(row||[]).some(v=>norm(v)==='credit card bill'));
  const header=headerRow>=0?(rows[headerRow]||[]):[];
  const nameCol=header.findIndex(v=>norm(v)==='credit card bill');
  const amountCol=header.findIndex(v=>norm(v)==='amount');
- const dueCol=header.findIndex(v=>norm(v)==='due date'||norm(v)==='due date ');
- const cardEntries=[];
- const paymentRows=[];
- let cardTotal=0, totalRow=-1;
+ const dueCol=header.findIndex(v=>norm(v)==='due date');
+ const oneTimeEntries=[],recurringEntries=[],standaloneEntries=[];
+ let cardTotal=0,cardCount=0,totalRow=-1;
+ const numericAmount=v=>{
+   const t=String(v??'').trim();
+   if(!/^\$?\s*-?[\d,]+(?:\.\d{1,2})?$/.test(t))return null;
+   const n=Number(t.replace(/[$,\s]/g,''));return Number.isFinite(n)?n:null;
+ };
+ const makeEntry=(name,amount,due)=>({name:String(name??''),amount,due:String(due??'').trim(),numeric:numericAmount(amount)});
  if(headerRow>=0&&nameCol>=0&&amountCol>=0&&dueCol>=0){
-   // Credit cards are listed between the header and the workbook's Total row.
    for(let r=headerRow+1;r<rows.length;r++){
-     const row=rows[r]||[], name=row[nameCol], label=norm(name);
+     const row=rows[r]||[],name=row[nameCol],label=norm(name);
      if(label==='total'||label==='total:'){totalRow=r;break}
-     if(name!==''&&name!=null){
-       const amount=row[amountCol], due=row[dueCol];
-       const numeric=Number(String(amount??'').replace(/[$,]/g,''));
-       if(Number.isFinite(numeric))cardTotal+=numeric;
-       cardEntries.push([esc(name),fmt(amount),esc(due||'—')]);
-     }
+     if(!label)continue;
+     const entry=makeEntry(name,row[amountCol],row[dueCol]);
+     if(entry.numeric!==null)cardTotal+=entry.numeric;
+     cardCount++;
+     oneTimeEntries.push(entry);
    }
-   // Monthly payments follow the credit-card Total row. Exclude worksheet
-   // calculation rows such as Total and After deduction; preserve named items.
    const paymentStart=totalRow>=0?totalRow+1:headerRow+1;
    for(let r=paymentStart;r<rows.length;r++){
-     const row=rows[r]||[], name=row[nameCol], label=norm(name);
-     if(!label||label==='total'||label==='total:'||label==='after deduction:')continue;
-     const amount=row[amountCol], due=row[dueCol];
-     paymentRows.push([esc(name),fmt(amount),esc(due||'—')]);
+     const row=rows[r]||[],name=row[nameCol],label=norm(name);
+     if(!label||/^(total:?|after deduction:?|credit card total)$/.test(label))continue;
+     const entry=makeEntry(name,row[amountCol],row[dueCol]);
+     // Standalone requires explicit labeling; do not guess from bill names.
+     if(/standalone|separate recurring|excluded from (?:monthly )?total/i.test(entry.name+' '+entry.due))standaloneEntries.push(entry);
+     else if(/monthly|every month|per month|recurring/i.test(entry.due+' '+entry.name))recurringEntries.push(entry);
+     else oneTimeEntries.push(entry);
    }
  }
- const cardDisplay=[...cardEntries,['Credit card total',money(cardTotal),'—'],['','',''],['','',''],...paymentRows];
- $('fiveCards').innerHTML=tableHtml(['Bill / payment','Amount','Due date'],cardDisplay.length?cardDisplay:[['No entries','—','—']]);
+ const billItem=(entry,isTotal=false)=>`<div class="bill-item${isTotal?' bill-total':''}"><div class="bill-item-main"><div class="bill-item-name">${esc(entry.name)}</div>${entry.due&&!isTotal?`<div class="bill-item-due">Due: ${esc(entry.due)}</div>`:''}</div><div class="bill-item-amount">${isTotal?money(entry.numeric):fmt(entry.amount)}</div></div>`;
+ const billSection=(title,items,footer,empty)=>`<section class="bill-section"><h3 class="bill-section-title">${title}</h3><div class="bill-list">${items.length?items.map(x=>billItem(x)).join(''):`<div class="bill-empty">${empty}</div>`}${footer?billItem(footer,true):''}</div></section>`;
+ const sumEntries=items=>items.reduce((sum,e)=>sum+(e.numeric||0),0);
+ const cardFooter=cardCount?{name:'Credit card total',numeric:cardTotal}:null;
+ // Preserve the credit card subtotal immediately after its cards, even when
+ // other one-time bill entries follow.
+ const cardRows=oneTimeEntries.slice(0,cardCount);
+ const extraOneTime=oneTimeEntries.slice(cardCount);
+ const oneTimeMarkup=`<section class="bill-section"><h3 class="bill-section-title">1. One-Time Payments</h3><div class="bill-list">${cardRows.map(x=>billItem(x)).join('')}${cardFooter?billItem(cardFooter,true):''}${extraOneTime.map(x=>billItem(x)).join('')}${!oneTimeEntries.length?'<div class="bill-empty">No one-time payments found.</div>':''}</div></section>`;
+ const recurringMarkup=billSection('2. Recurring Monthly Payments',recurringEntries,recurringEntries.length?{name:'Recurring monthly total',numeric:sumEntries(recurringEntries)}:null,'No payments explicitly marked as recurring in this worksheet.');
+ const standaloneMarkup=billSection('3. Standalone Recurring Payments',standaloneEntries,{name:'Standalone recurring total',numeric:sumEntries(standaloneEntries)},'No standalone recurring payments identified in this worksheet.');
+ const billNotice=normalizedSheet!==requestedSheet?`<p class="notice" style="margin:0 0 12px">No workbook sheet matched ${esc(requestedLabel)}. Showing saved worksheet <strong>${esc(actualSheet)}</strong> instead; these are not confirmed ${esc(requestedLabel)} bills.</p>`:'';
+ $('fiveCards').innerHTML=billNotice+oneTimeMarkup+recurringMarkup+standaloneMarkup+'<p class="muted" style="margin:8px 0 0">Recurring items are grouped when the workbook explicitly says monthly or recurring. Other items remain in one-time payments until classified. This view does not create or stop recurring schedules.</p>';
  $('edit4').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
 
-// Tab 5: workbook columns R:T (array indexes 16 and 18 after the blank leading column is omitted).
+ // Tab 5: workbook columns R:T (array indexes 16 and 18 after the blank leading column is omitted).
  const fuelRows=[];let petrolTotal=0,cashTotal=0;for(let r=0;r<rows.length;r++){const day=Number(String(cell(rows,r,0)).trim()),petrol=cell(rows,r,16),cash=cell(rows,r,18);if(!Number.isInteger(day)||day<1||day>=20)continue;const hasPetrol=petrol!==''&&petrol!=null,hasCash=cash!==''&&cash!=null;if(!hasPetrol&&!hasCash)continue;if(hasPetrol)petrolTotal+=Number(String(petrol).replace(/[$,]/g,'')||0);if(hasCash)cashTotal+=Number(String(cash).replace(/[$,]/g,'')||0);fuelRows.push([String(day),fmt(petrol),fmt(cash)])}
  fuelRows.push(['Total',money(petrolTotal),money(cashTotal)]);
  $('fiveFuel').innerHTML=tableHtml(['Entry','Petrol','Cash Card'],fuelRows.length?fuelRows:[['No entries','—','—']]);
