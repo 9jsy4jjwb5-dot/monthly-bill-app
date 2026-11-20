@@ -377,7 +377,7 @@ const billDueText=r=>{
  if(date.getMonth()!==month-1)return 'Due day '+r.due_day+' · One-time';
  return 'Due: '+date.toLocaleDateString('en-SG',{day:'numeric',month:'long',year:'numeric'})+' · One-time';
 };
-const billLine=r=>`<div class="bill-item"><div class="bill-item-main"><div class="bill-item-name">${esc(r.payment_name)}</div><div class="bill-item-due">${esc(billDueText(r))}</div></div><div class="bill-item-amount">${money(r.amount)}${isAdmin?`<div class="row" style="margin-top:6px;justify-content:flex-end"><button type="button" class="small" data-bedit="${esc(r.id)}">Edit</button><button type="button" class="small danger" data-bstop="${esc(r.id)}">${r.category==='one_time'?'Delete':'Stop'}</button></div>`:''}</div></div>`;
+const billLine=r=>`<div class="bill-item"><div class="bill-item-main"><div class="bill-item-name">${esc(r.payment_name)}</div><div class="bill-item-due">${esc(billDueText(r))}</div></div><div class="bill-item-amount">${money(r.amount)}${isAdmin?`<div class="row" style="margin-top:6px;justify-content:flex-end"><button type="button" class="small" data-bedit="${esc(r.id)}">Edit</button><button type="button" class="small danger" data-bstop="${esc(r.id)}">${r.category==='one_time'?'Delete':'Stop'}</button>${r.category!=='one_time'?`<button type="button" class="small danger" data-bseries="${esc(r.id)}">Delete series</button>`:''}</div>`:''}</div></div>`;
 function renderNewBills(){
  const status=$('tab4Status');if(!status)return;
  if(billLoadError){status.textContent='New payment database not ready: '+billLoadError.message+' — Please run the Tab 4 SQL setup first.';$('fiveCards').innerHTML='';$('edit4').innerHTML='';$('tab4Summary').innerHTML='';$('tab4Archive').innerHTML='';return}
@@ -389,6 +389,7 @@ function renderNewBills(){
  $('fiveCards').innerHTML=groups.map(([key,title])=>{const records=active.filter(r=>r.category===key);return `<section class="bill-section"><h3 class="bill-section-title">${title}</h3><div class="bill-list">${records.length?records.map(billLine).join(''):'<div class="bill-empty">$0.00 — No record entered</div>'}<div class="bill-item bill-total"><div class="bill-item-main"><div class="bill-item-name">${key==='standalone'?'Standalone total':key==='recurring'?'Recurring total':'One-time total'}</div></div><div class="bill-item-amount">${money(sum(key))}</div></div></div></section>`}).join('');
  $('fiveCards').querySelectorAll('[data-bedit]').forEach(b=>b.onclick=()=>openBillEditor(b.dataset.bedit));
  $('fiveCards').querySelectorAll('[data-bstop]').forEach(b=>b.onclick=()=>stopBillPayment(b.dataset.bstop));
+ $('fiveCards').querySelectorAll('[data-bseries]').forEach(b=>b.onclick=()=>deleteBillSeries(b.dataset.bseries));
  $('edit4').innerHTML=isAdmin?`<button type="button" class="primary" id="newBillButton">+ Add payment</button><div id="billEditor"></div>`:'';
  if(isAdmin)$('newBillButton').onclick=()=>openBillEditor(null);
  const sh=sheets.find(x=>{const n=x.sheet_name.toLowerCase().replace(/\s/g,'');return n===new Date(monthStart()+'-01').toLocaleString('en',{month:'short'}).toLowerCase()+monthStart().slice(2,4)});
@@ -416,6 +417,22 @@ async function saveBillPayment(e){
  else{const result=await sb.rpc('bill_change_schedule',{p_id:old.id,p_effective_from:m,p_stop:false,p_name:name,p_amount:amount,p_due_day:due,p_category:category});error=result.error;}
  if(error){msg.textContent='Could not save: '+error.message;return}
  await loadBillPayments();renderNewBills();
+}
+async function deleteBillSeries(id){
+ if(!isAdmin)return;
+ const r=billPayments.find(x=>x.id===id);
+ if(!r||r.category==='one_time')return;
+ const versions=billPayments.filter(x=>x.series_id===r.series_id);
+ const name=r.payment_name;
+ const entered=prompt('PERMANENT DELETE: This removes all months of "'+name+'" ('+versions.length+' saved version(s)).\n\nType the exact payment name to confirm:');
+ if(entered===null)return;
+ if(entered!==name){alert('Name did not match. Nothing was deleted.');return;}
+ if(!confirm('Final confirmation: permanently delete ALL months of "'+name+'"? This cannot be undone.'))return;
+ const {data,error}=await sb.rpc('bill_delete_series',{p_id:id});
+ if(error){alert('Could not delete series: '+error.message);return;}
+ if(!Number.isInteger(data)||data<1){alert('No records were deleted. Please check the database.');return;}
+ await loadBillPayments();renderNewBills();
+ alert('Deleted '+data+' saved version(s) of "'+name+'".');
 }
 async function stopBillPayment(id){
  if(!isAdmin)return;const r=billPayments.find(x=>x.id===id);if(!r||!billActive(r,monthStart()))return;
