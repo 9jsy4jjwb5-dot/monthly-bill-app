@@ -121,6 +121,22 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 #tab4Summary .tab4-summary-grid .stat{display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;min-height:114px;}
 #tab4Summary .tab4-summary-grid .stat>.muted{width:100%;flex:1 1 auto;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.3;}
 #tab4Summary .tab4-summary-grid .num{flex:0 0 auto;text-align:center;width:100%;margin-top:8px;font-variant-numeric:tabular-nums;white-space:nowrap;}
+
+/* Tab 5 presentation only: reuse Tab 4's bordered records and aligned summary. */
+#fiveFuel .bill-section{margin:0 0 17px}
+#fiveFuel .bill-section-title{font-size:15px;font-weight:750;color:var(--navy);margin:14px 0 8px}
+#fiveFuel .bill-list{border:1px solid #e1e8f0;border-radius:13px;overflow:hidden;background:white}
+#fiveFuel .bill-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 11px;border-bottom:1px solid #e1e8f0;min-width:0}
+#fiveFuel .bill-item:last-child{border-bottom:0}
+#fiveFuel .bill-item-main{min-width:0;flex:1;overflow-wrap:anywhere}
+#fiveFuel .bill-item-name{font-size:14px;font-weight:650;color:var(--navy)}
+#fiveFuel .bill-item-amount{flex-shrink:0;text-align:right;font-size:14px;font-weight:750;font-variant-numeric:tabular-nums}
+#fiveFuel .bill-total{background:#f1f5fa}
+#fiveFuel .bill-total .bill-item-name{font-weight:750}
+#fiveFuel .bill-empty{font-size:13px;color:#65736c;padding:12px}
+#fiveFuel .tab4-summary-grid .stat{display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;min-height:114px}
+#fiveFuel .tab4-summary-grid .stat>.muted{width:100%;flex:1 1 auto;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.3}
+#fiveFuel .tab4-summary-grid .num{flex:0 0 auto;text-align:center;width:100%;margin-top:8px;font-variant-numeric:tabular-nums;white-space:nowrap}
 </style>
 </head><body>
 <header><div class="eyebrow">Shared household tracker</div><h1>Monthly Bills</h1><p>Daily meals, monthly records and bills in one place.</p></header>
