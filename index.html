@@ -153,7 +153,7 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 </div></div><div class="foot">Monthly Bill · Shared records · SGD</div></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
-const $=id=>document.getElementById(id);let sb=null,user=null,isAdmin=false,meals=[],sheets=[],activeSheet=null;let billPayments=[],billLoadError=null,billEditing=null;
+const $=id=>document.getElementById(id);let sb=null,user=null,isAdmin=false,meals=[],sheets=[],activeSheet=null;let billPayments=[],billLoadError=null,billEditing=null;let petrolCashRecords=[],petrolCashError=null,petrolCashEditing=null;
 const today=new Date();const localDate=d=>{const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)};const monthNow=localDate(today).slice(0,7);$('mealdate').value=localDate(today);$('monthfilter').value=monthNow;$('mealmonth').value=monthNow;
 function normalizeProjectUrl(value){return String(value||'').trim().replace(/\/rest\/v1\/?$/i,'').replace(/\/+$/,'')}
 function config(){try{const c=JSON.parse(localStorage.getItem('mb_supabase')||'{}');if(c.url){const normalized=normalizeProjectUrl(c.url);if(normalized!==c.url){c.url=normalized;localStorage.setItem('mb_supabase',JSON.stringify(c))}}return c}catch{return {}}}
@@ -171,7 +171,7 @@ $('signout').onclick=async()=>{await sb.auth.signOut();location.reload()};
 async function showApp(){ $('setup').classList.add('hidden');$('auth').classList.add('hidden');$('app').classList.remove('hidden');$('signedin').textContent=user.email||'Signed in';const {data:adm}=await sb.rpc('is_admin');isAdmin=!!adm;$('rolepill').textContent=isAdmin?'Administrator':'Daily meal entry';$('admintab').classList.toggle('hidden',!isAdmin);await refreshAll() }
 function money(n){return '$'+Number(n||0).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function refreshAll(){await loadMeals();await loadSheets();await loadBillPayments();renderMeals();renderSummary();renderBills();if(isAdmin)renderSheetEditor()}
+async function refreshAll(){await loadMeals();await loadSheets();await loadBillPayments();await loadPetrolCashRecords();renderMeals();renderSummary();renderBills();if(isAdmin)renderSheetEditor()}
 async function loadMeals(){const {data,error}=await sb.from('daily_meals').select('*').order('meal_date',{ascending:false}).order('created_at',{ascending:false}).limit(1000);if(error){console.error(error);return}meals=data||[]}
 async function loadSheets(){const {data,error}=await sb.from('monthly_sheets').select('*').order('sheet_order',{ascending:true});if(error){console.error(error);return}sheets=data||[];if(!activeSheet&&sheets.length)activeSheet=sheets[0].sheet_name}
 $('mealform').onsubmit=async e=>{e.preventDefault();$('mealmsg').textContent='Saving…';const record={person:$('person').value,meal_date:$('mealdate').value,amount:Number($('amount').value),note:$('note').value.trim()||null,created_by:user.id};const {error}=await sb.from('daily_meals').insert(record);if(error){$('mealmsg').textContent='Could not save: '+error.message;return}$('amount').value='';$('note').value='';$('mealmsg').textContent='Meal expense saved and shared.';await refreshAll()};
@@ -198,14 +198,14 @@ document.querySelectorAll('[data-five]').forEach(b=>b.addEventListener('click',(
  document.querySelectorAll('[data-five]').forEach(x=>x.classList.toggle('active',x===b));
  document.querySelectorAll('.tab-page').forEach(x=>x.classList.toggle('hidden',x.id!=='five-'+fiveActive));
 }));
-$('fiveMonth').onchange=()=>{renderFiveTabs();renderNewBills()};
+$('fiveMonth').onchange=()=>{renderFiveTabs();renderNewBills();renderPetrolCash()};
 function sheetRows(){const sh=sheets.find(x=>x.sheet_name===activeSheet)||sheets[sheets.length-1];return sh?.rows||[]}
 function cell(rows,r,c){return rows?.[r]?.[c]??''}
 function fmt(v){if(v==null||v==='')return '—';const n=Number(String(v).replace(/[$,]/g,''));return Number.isFinite(n)&&String(v).trim()!==''?money(n):esc(v)}
 function tableHtml(headers,rows){return `<div class="new-table-wrap"><table class="new-table"><thead><tr>${headers.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 function monthSheet(){const m=monthStart();let match=sheets.find(x=>{const n=x.sheet_name.toLowerCase().replace(/\s/g,'');return n===m.slice(0,3).toLowerCase()+m.slice(2,4)||n===new Date(m+'-01').toLocaleString('en',{month:'short'}).toLowerCase()+m.slice(2,4)});return match||sheets[sheets.length-1]}
 function renderFiveTabs(){
- const sh=monthSheet();if(!sh){['fiveExpenses','fiveCalc','fiveFuel'].forEach(id=>$(id).innerHTML='<p class="muted">No monthly workbook records found yet. An administrator can import the existing Excel workbook from Admin tools.</p>');renderFiveMeals();renderNewBills();return}
+ const sh=monthSheet();if(!sh){['fiveExpenses','fiveCalc','fiveFuel'].forEach(id=>$(id).innerHTML='<p class="muted">No monthly workbook records found yet. An administrator can import the existing Excel workbook from Admin tools.</p>');renderFiveMeals();renderNewBills();renderPetrolCash();return}
  activeSheet=sh.sheet_name;const rows=sh.rows||[];
  // Tab 1 uses the shared daily_meals table, not a duplicate workbook copy.
  renderFiveMeals();
@@ -334,11 +334,8 @@ function renderFiveTabs(){
  // Tab 4 is now rendered from its own Supabase table, not workbook cells.
  renderNewBills();
 
- // Tab 5: workbook columns R:T (array indexes 16 and 18 after the blank leading column is omitted).
- const fuelRows=[];let petrolTotal=0,cashTotal=0;for(let r=0;r<rows.length;r++){const day=Number(String(cell(rows,r,0)).trim()),petrol=cell(rows,r,16),cash=cell(rows,r,18);if(!Number.isInteger(day)||day<1||day>=20)continue;const hasPetrol=petrol!==''&&petrol!=null,hasCash=cash!==''&&cash!=null;if(!hasPetrol&&!hasCash)continue;if(hasPetrol)petrolTotal+=Number(String(petrol).replace(/[$,]/g,'')||0);if(hasCash)cashTotal+=Number(String(cash).replace(/[$,]/g,'')||0);fuelRows.push([String(day),fmt(petrol),fmt(cash)])}
- fuelRows.push(['Total',money(petrolTotal),money(cashTotal)]);
- $('fiveFuel').innerHTML=tableHtml(['Entry','Petrol','Cash Card'],fuelRows.length?fuelRows:[['No entries','—','—']]);
- $('edit5').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
+ // Tab 5 is backed by its own Supabase records, not the old workbook.
+ renderPetrolCash();
 }
  let editingMealId=null;
  function canEditMeal(x){return isAdmin||(x.created_by===user?.id&&x.person==='Eileen')}
@@ -441,6 +438,53 @@ async function stopBillPayment(id){
  if(one)({error}=await sb.from('bill_payments').delete().eq('id',id));
  else ({error}=await sb.rpc('bill_change_schedule',{p_id:id,p_effective_from:billMonthDate(monthStart()),p_stop:true}));
  if(error){alert('Could not update: '+error.message);return}await loadBillPayments();renderNewBills();
+}
+
+
+// Tab 5: independent Petrol / Cash Card records. Old workbook is retained, read-only.
+async function loadPetrolCashRecords(){
+ const {data,error}=await sb.from('petrol_cash_records').select('*').order('record_date',{ascending:false});
+ petrolCashError=error;petrolCashRecords=error?[]:(data||[]);
+}
+function renderPetrolCash(){
+ const root=$('fiveFuel');if(!root)return;
+ if(petrolCashError){root.innerHTML='<p class="notice">Petrol & Cash Card database is not ready: '+esc(petrolCashError.message)+'. Run the Tab 5 SQL setup before entering records.</p>';$('edit5').innerHTML='';return;}
+ const month=monthStart(),rows=petrolCashRecords.filter(x=>x.record_date.slice(0,7)===month);
+ const sum=kind=>rows.filter(x=>x.record_type===kind).reduce((n,x)=>n+Number(x.amount),0);
+ root.innerHTML=`<div class="grid tab4-summary-grid" style="margin:12px 0"><div class="stat"><div class="muted">Petrol total</div><div class="num">${money(sum('petrol'))}</div></div><div class="stat"><div class="muted">Cash Card total</div><div class="num">${money(sum('cash_card'))}</div></div></div>`+
+ [['petrol','1. Petrol Records','+ Add Petrol'],['cash_card','2. Cash Card Records','+ Add Cash Card']].map(([kind,title,addLabel])=>{
+ const list=rows.filter(x=>x.record_type===kind).sort((a,b)=>b.record_date.localeCompare(a.record_date));
+ return `<section class="bill-section"><div class="row between" style="gap:8px;align-items:center"><h3 class="bill-section-title" style="margin:0">${title}</h3>${isAdmin?`<button type="button" class="primary" data-pcadd="${kind}">${addLabel}</button>`:''}</div><div class="bill-list" style="margin-top:10px">${list.length?list.map(x=>`<div class="bill-item"><div class="bill-item-main"><div class="bill-item-name">${new Date(x.record_date+'T12:00:00').toLocaleDateString('en-SG',{day:'numeric',month:'long',year:'numeric'})}</div></div><div class="bill-item-amount">${money(x.amount)}${isAdmin?`<div class="row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="small" data-pcedit="${esc(x.id)}">Edit</button><button type="button" class="small danger" data-pcdelete="${esc(x.id)}">Delete</button></div>`:''}</div></div>`).join(''):'<div class="bill-empty">$0.00 — No record entered</div>'}<div class="bill-item bill-total"><div class="bill-item-main"><div class="bill-item-name">${kind==='petrol'?'Petrol total':'Cash Card total'}</div></div><div class="bill-item-amount">${money(sum(kind))}</div></div></div></section>`;
+ }).join('');
+ root.querySelectorAll('[data-pcadd]').forEach(b=>b.onclick=()=>openPetrolCashEditor(b.dataset.pcadd,null));
+ root.querySelectorAll('[data-pcedit]').forEach(b=>b.onclick=()=>{const r=petrolCashRecords.find(x=>x.id===b.dataset.pcedit);if(r)openPetrolCashEditor(r.record_type,r.id)});
+ root.querySelectorAll('[data-pcdelete]').forEach(b=>b.onclick=()=>deletePetrolCash(b.dataset.pcdelete));
+ $('edit5').innerHTML=`<div id="pcEditor"></div><details style="margin-top:16px"><summary style="cursor:pointer;font-weight:650">Old workbook archive (read-only)</summary><p class="muted">Historical workbook data is kept for reference and is not included in the new Petrol or Cash Card totals.</p>${(()=>{const sh=sheets.find(x=>x.sheet_name.toLowerCase().replace(/\s/g,'')===new Date(month+'-01').toLocaleString('en',{month:'short'}).toLowerCase()+month.slice(2,4));return sh?sheetTable(sh,false):'<p class="muted">No archived worksheet for this month.</p>'})()}</details>`;
+}
+function openPetrolCashEditor(kind,id){
+ if(!isAdmin)return;const old=petrolCashRecords.find(x=>x.id===id);petrolCashEditing=id||null;
+ const root=$('pcEditor');const label=kind==='petrol'?'Petrol':'Cash Card';
+ root.innerHTML=`<form id="pcForm" style="margin-top:14px;padding:14px;border:1px solid #dce5ef;border-radius:12px"><h3 class="section-title">${old?'Edit':'Add'} ${label}</h3><label>Date</label><input id="pcDate" type="date" required><label>Amount paid (SGD)</label><input id="pcAmount" type="number" min="0.01" step="0.01" required placeholder="0.00"><div class="row" style="margin-top:12px"><button class="primary" type="submit">Save</button><button id="pcCancel" type="button">Cancel</button></div><p id="pcMessage" class="muted"></p></form>`;
+ $('pcDate').value=old?.record_date||(monthStart()===monthNow?localDate(new Date()):monthStart()+'-01');$('pcAmount').value=old?.amount??'';
+ $('pcCancel').onclick=()=>root.innerHTML='';$('pcForm').onsubmit=e=>savePetrolCash(e,kind);
+ root.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+async function savePetrolCash(e,kind){
+ e.preventDefault();if(!isAdmin)return;
+ const msg=$('pcMessage'),date=$('pcDate').value,amount=Number($('pcAmount').value);
+ if(!date||date.slice(0,7)!==monthStart()){msg.textContent='Choose a date within the selected month ('+monthStart()+').';return;}
+ if(!Number.isFinite(amount)||amount<=0){msg.textContent='Enter an amount greater than $0.00.';return;}
+ msg.textContent='Saving…';const rec={record_type:kind,record_date:date,amount};
+ const result=petrolCashEditing?await sb.from('petrol_cash_records').update(rec).eq('id',petrolCashEditing).select('id'):await sb.from('petrol_cash_records').insert({...rec,created_by:user.id}).select('id');
+ if(result.error||!result.data?.length){msg.textContent='Could not save: '+(result.error?.message||'No record saved; check permissions.');return;}
+ await loadPetrolCashRecords();renderPetrolCash();
+}
+async function deletePetrolCash(id){
+ if(!isAdmin)return;const r=petrolCashRecords.find(x=>x.id===id);if(!r)return;
+ if(!confirm('Delete '+(r.record_type==='petrol'?'Petrol':'Cash Card')+' entry '+r.record_date+' — '+money(r.amount)+'?'))return;
+ const {data,error}=await sb.from('petrol_cash_records').delete().eq('id',id).select('id');
+ if(error||!data?.length){alert('Could not delete: '+(error?.message||'Check permissions.'));return;}
+ await loadPetrolCashRecords();renderPetrolCash();
 }
 
 init();
