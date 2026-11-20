@@ -145,7 +145,7 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 <section id="auth" class="card hidden"><h2 class="section-title">Sign in</h2><p class="muted">Only invited/shared users with an account can access the records.</p><label>Email</label><input id="email" type="email" autocomplete="username" placeholder="you@example.com"><label>Password</label><input id="password" type="password" autocomplete="current-password" placeholder="Password"><div class="row" style="margin-top:13px"><button class="primary" id="signin">Sign in</button><button id="signup">Create account</button></div><p style="margin:12px 0 0"><button type="button" id="forgot" class="small">Forgot password?</button></p><p id="authmsg" class="muted"></p></section>
 <section id="reset" class="card hidden"><h2 class="section-title">Set a new password</h2><p class="muted">Enter a new password for your Monthly Bill account.</p><label>New password</label><input id="newpassword" type="password" autocomplete="new-password" placeholder="At least 6 characters"><label>Confirm new password</label><input id="confirmpassword" type="password" autocomplete="new-password" placeholder="Enter it again"><button class="primary" id="savepassword" style="margin-top:14px;width:100%">Save new password</button><p id="resetmsg" class="muted"></p></section>
 <div id="app" class="hidden">
-<div class="row between" style="margin:5px 2px 13px"><div><span class="pill" id="rolepill">Shared access</span><div class="muted" id="signedin" style="margin-top:5px"></div></div><button id="signout">Sign out</button></div>
+<div class="row between" style="margin:5px 2px 13px"><div><span class="pill" id="rolepill">Shared access</span><div class="muted" id="signedin" style="margin-top:5px"></div></div><div class="row"><button id="adminSettingsButton" class="hidden" type="button">⚙ Admin Settings</button><button id="signout">Sign out</button></div></div>
 <nav class="tabs" id="fiveTabs">
 <button class="tab active" data-five="1">1 · Meals</button>
 <button class="tab" data-five="2">2 · Expenses</button>
@@ -154,6 +154,7 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 <button class="tab" data-five="5">5 · Petrol & Cash</button>
 </nav>
 <div class="month-selector"><label for="fiveMonth">Selected month</label><input id="fiveMonth" type="month"></div>
+<section id="adminSettingsPanel" class="card hidden"><div class="row between"><h2 class="section-title">Admin Settings</h2><button type="button" id="adminSettingsBack">← Back to tabs</button></div><p class="muted">Manage registered users and permissions. Changes to the existing tab security rules are not active yet; this page saves permission preferences for the next security update.</p><h3>User Management</h3><div id="adminUsersList" class="muted">Loading users…</div><div id="adminSettingsMsg" class="muted" role="status" style="margin-top:12px"></div><hr style="border:0;border-top:1px solid #e1e8f0;margin:20px 0"><h3>Calculation Settings</h3><p class="muted">Coming next: adjustable sharing formula, effective from a selected month. The existing calculation is unchanged.</p></section>
 <div id="fivePages">
 <section id="five-1" class="tab-page"><div class="card meal-summary-card"><div class="grid" id="mealStats2"></div></div><div class="card meal-form-card"><h2 class="section-title">Daily meals</h2><p class="muted">All shared users can add daily meal records.</p><form id="mealform2"><div class="grid"><div><label>Person</label><select id="person2"><option>Vincent</option><option>Eileen</option><option>Eileen Ezlink</option></select></div><div><label>Date</label><input id="date2" type="date" required></div><div><label>Amount (SGD)</label><input id="amount2" type="number" min="0.01" step="0.01" required placeholder="0.00"></div><div><label>Note (optional)</label><input id="note2" maxlength="120" placeholder="Lunch / dinner"></div></div><button class="primary" type="submit" style="width:100%;margin-top:14px">Add meal</button><button type="button" id="cancelMealEdit2" class="hidden" style="margin-top:8px">Cancel edit</button><p id="mealmsg2" class="muted"></p></form></div><div class="card meal-records-card"><div class="row between"><h2 class="section-title">Meal records</h2><span class="pill" id="mealcount2">0 entries</span></div><div id="fiveMeals"></div></div></section>
 <section id="five-2" class="tab-page hidden"><div class="card"><h2 class="section-title">Monthly expenses</h2><p class="muted">Administrator input · Standard users can view.</p><div id="fiveExpenses"></div><div id="edit2"></div></div></section>
@@ -184,7 +185,7 @@ $('forgot').onclick=async()=>{const email=$('email').value.trim();if(!email){$('
 $('savepassword').onclick=async()=>{const p=$('newpassword').value,confirm=$('confirmpassword').value;if(p.length<6){$('resetmsg').textContent='Please use at least 6 characters.';return}if(p!==confirm){$('resetmsg').textContent='The passwords do not match.';return}$('resetmsg').textContent='Saving new password…';const {error}=await sb.auth.updateUser({password:p});if(error){$('resetmsg').textContent='Could not update password: '+error.message;return}$('resetmsg').textContent='Password updated successfully. Opening your Monthly Bill app…';user=(await sb.auth.getUser()).data.user;if(user){await showApp()}else{$('reset').classList.add('hidden');$('auth').classList.remove('hidden');$('authmsg').textContent='Password updated. Please sign in with your new password.'}};
 
 $('signout').onclick=async()=>{await sb.auth.signOut();location.reload()};
-async function showApp(){ $('setup').classList.add('hidden');$('auth').classList.add('hidden');$('app').classList.remove('hidden');$('signedin').textContent=user.email||'Signed in';const {data:adm}=await sb.rpc('is_admin');isAdmin=!!adm;$('rolepill').textContent=isAdmin?'Administrator':'Daily meal entry';$('admintab').classList.toggle('hidden',!isAdmin);await refreshAll() }
+async function showApp(){ $('setup').classList.add('hidden');$('auth').classList.add('hidden');$('app').classList.remove('hidden');$('signedin').textContent=user.email||'Signed in';const {data:adm}=await sb.rpc('is_admin');isAdmin=!!adm;$('rolepill').textContent=isAdmin?'Administrator':'Daily meal entry';$('admintab').classList.toggle('hidden',!isAdmin);$('adminSettingsButton').classList.toggle('hidden',!isAdmin);await refreshAll() }
 function money(n){return '$'+Number(n||0).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function refreshAll(){await loadMeals();await loadSheets();await loadBillPayments();await loadPetrolCashRecords();renderMeals();renderSummary();renderBills();if(isAdmin)renderSheetEditor()}
@@ -511,6 +512,61 @@ async function deletePetrolCash(id){
  const {data,error}=await sb.from('petrol_cash_records').delete().eq('id',id).select('id');
  if(error||!data?.length){alert('Could not delete: '+(error?.message||'Check permissions.'));return;}
  await loadPetrolCashRecords();renderPetrolCash();
+}
+
+
+// Administrator-only management panel. Database RPCs enforce admin access.
+const adminTabNames={meals:'1 · Meals',expenses:'2 · Expenses',calculation:'3 · Calculation',cards_bills:'4 · Cards & Bills',petrol_cash:'5 · Petrol & Cash'};
+const adminPermissionFields=['can_view','can_add','can_edit','can_delete'];
+let adminPanelOpen=false;
+function setAdminPanel(open){
+ if(open&&!isAdmin)return;
+ adminPanelOpen=!!open;
+ $('adminSettingsPanel').classList.toggle('hidden',!open);
+ $('fiveTabs').classList.toggle('hidden',!!open);
+ document.querySelector('.month-selector').classList.toggle('hidden',!!open);
+ $('fivePages').classList.toggle('hidden',!!open);
+ if(open)loadAdminUsers();
+}
+$('adminSettingsButton').onclick=()=>setAdminPanel(!adminPanelOpen);
+$('adminSettingsBack').onclick=()=>setAdminPanel(false);
+async function loadAdminUsers(){
+ if(!isAdmin)return;
+ const host=$('adminUsersList'),msg=$('adminSettingsMsg');host.textContent='Loading users…';msg.textContent='';
+ const [listResult,permissionResult]=await Promise.all([
+  sb.rpc('admin_list_users'),
+  sb.from('app_user_permissions').select('user_id,tab_key,can_view,can_add,can_edit,can_delete')
+ ]);
+ if(listResult.error||permissionResult.error){host.textContent='Could not load users: '+(listResult.error?.message||permissionResult.error?.message);return}
+ const rows=listResult.data||[],permissions=permissionResult.data||[];
+ if(!rows.length){host.textContent='No registered users found.';return}
+ host.innerHTML=rows.map((u,i)=>{
+  const own=u.user_id===user.id,admin=u.user_role==='Administrator';
+  const settings=Object.keys(adminTabNames).map(tab=>{
+   const current=permissions.find(p=>p.user_id===u.user_id&&p.tab_key===tab)||{};
+   return `<div class="admin-permission-row" data-user="${esc(u.user_id)}" data-tab="${tab}" style="border-top:1px solid #e1e8f0;padding:10px 0"><strong>${adminTabNames[tab]}</strong><div class="row" style="gap:12px;margin:8px 0;flex-wrap:wrap">${adminPermissionFields.map((f,j)=>`<label style="margin:0;font-weight:500;display:flex;gap:5px;align-items:center"><input type="checkbox" data-field="${f}" style="width:auto" ${current[f]?'checked':''}>${['View','Add','Edit','Delete'][j]}</label>`).join('')}</div><button type="button" class="small admin-save-tab">Save permissions</button></div>`;
+  }).join('');
+  return `<div class="card" style="padding:13px;margin-top:12px" data-admin-user="${esc(u.user_id)}"><strong>${esc(u.email||'User')}</strong><p class="muted" style="margin:5px 0">${esc(u.user_role)}${own?' · Your account':''}</p><button type="button" class="small admin-role-toggle" ${own?'disabled':''}>${admin?'Remove administrator rights':'Make administrator'}</button><details style="margin-top:12px"><summary style="cursor:pointer;font-weight:650">Tab permissions</summary><p class="muted">These preferences are saved, but existing database policies still determine access until the security update.</p>${settings}</details></div>`;
+ }).join('');
+ host.querySelectorAll('.admin-role-toggle').forEach(button=>button.onclick=async()=>{
+  const block=button.closest('[data-admin-user]'),id=block.dataset.adminUser;
+  const target=rows.find(x=>x.user_id===id);if(!target||id===user.id)return;
+  const promote=target.user_role!=='Administrator';
+  if(!confirm((promote?'Grant':'Remove')+' administrator rights for '+target.email+'?'))return;
+  button.disabled=true;msg.textContent='Saving administrator role…';
+  const {error}=await sb.rpc('admin_set_user_role',{p_user_id:id,p_make_admin:promote});
+  if(error){msg.textContent='Could not save: '+error.message;button.disabled=false;return}
+  await loadAdminUsers();$('adminSettingsMsg').textContent='Administrator role updated.';
+ });
+ host.querySelectorAll('.admin-save-tab').forEach(button=>button.onclick=async()=>{
+  const line=button.closest('[data-tab]');const id=line.dataset.user,tab=line.dataset.tab;
+  const flags=Object.fromEntries(adminPermissionFields.map(f=>[f,line.querySelector(`[data-field="${f}"]`).checked]));
+  if(!flags.can_view&&(flags.can_add||flags.can_edit||flags.can_delete)){msg.textContent='Enable View before Add, Edit or Delete.';return}
+  button.disabled=true;msg.textContent='Saving '+adminTabNames[tab]+' permissions…';
+  const {error}=await sb.rpc('admin_set_tab_permissions',{p_user_id:id,p_tab_key:tab,p_can_view:flags.can_view,p_can_add:flags.can_add,p_can_edit:flags.can_edit,p_can_delete:flags.can_delete});
+  msg.textContent=error?'Could not save: '+error.message:'Permissions saved. Enforcement across tabs is the next step.';
+  button.disabled=false;
+ });
 }
 
 init();
