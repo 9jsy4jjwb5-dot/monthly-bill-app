@@ -114,6 +114,10 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 #fiveCards .bill-total{background:#f1f5fa}
 #fiveCards .bill-total .bill-item-name{font-weight:750}
 #fiveCards .bill-empty{font-size:13px;color:#65736c;padding:12px}
+
+/* Tab 4 summary: centre labels and monetary amounts only */
+#tab4Summary .tab4-summary-grid .stat{text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+#tab4Summary .tab4-summary-grid .num{text-align:center;width:100%;font-variant-numeric:tabular-nums;}
 </style>
 </head><body>
 <header><div class="eyebrow">Shared household tracker</div><h1>Monthly Bills</h1><p>Daily meals, monthly records and bills in one place.</p></header>
@@ -378,7 +382,7 @@ function renderNewBills(){
  const active=billPayments.filter(r=>billActive(r,monthStart()));
  const groups=[['one_time','1. One-Time Payments'],['recurring','2. Recurring Monthly Payments'],['standalone','3. Standalone Recurring Payments']];
  const sum=cat=>active.filter(r=>r.category===cat).reduce((n,r)=>n+Number(r.amount),0);
- $('tab4Summary').innerHTML=`<div class="grid" style="margin:12px 0"><div class="stat"><div class="muted">Monthly total (excluding standalone)</div><div class="num">${money(sum('one_time')+sum('recurring'))}</div></div><div class="stat"><div class="muted">Standalone recurring total</div><div class="num">${money(sum('standalone'))}</div></div></div>`;
+ $('tab4Summary').innerHTML=`<div class="grid tab4-summary-grid" style="margin:12px 0"><div class="stat"><div class="muted">Monthly total (excluding standalone)</div><div class="num">${money(sum('one_time')+sum('recurring'))}</div></div><div class="stat"><div class="muted">Standalone recurring total</div><div class="num">${money(sum('standalone'))}</div></div></div>`;
  $('fiveCards').innerHTML=groups.map(([key,title])=>{const records=active.filter(r=>r.category===key);return `<section class="bill-section"><h3 class="bill-section-title">${title}</h3><div class="bill-list">${records.length?records.map(billLine).join(''):'<div class="bill-empty">$0.00 — No record entered</div>'}<div class="bill-item bill-total"><div class="bill-item-main"><div class="bill-item-name">${key==='standalone'?'Standalone total':key==='recurring'?'Recurring total':'One-time total'}</div></div><div class="bill-item-amount">${money(sum(key))}</div></div></div></section>`}).join('');
  $('fiveCards').querySelectorAll('[data-bedit]').forEach(b=>b.onclick=()=>openBillEditor(b.dataset.bedit));
  $('fiveCards').querySelectorAll('[data-bstop]').forEach(b=>b.onclick=()=>stopBillPayment(b.dataset.bstop));
