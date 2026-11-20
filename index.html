@@ -169,7 +169,7 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 </div></div><div class="foot">Monthly Bill · Shared records · SGD</div></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
-const $=id=>document.getElementById(id);let sb=null,user=null,isAdmin=false,meals=[],sheets=[],activeSheet=null;let billPayments=[],billLoadError=null,billEditing=null;let petrolCashRecords=[],petrolCashError=null,petrolCashEditing=null;
+const $=id=>document.getElementById(id);let sb=null,user=null,isAdmin=false,meals=[],sheets=[],activeSheet=null;let billPayments=[],billLoadError=null,billEditing=null;let petrolCashRecords=[],petrolCashError=null,petrolCashEditing=null;let newExpenses=[],newExpenseError=null,editingExpenseId=null;
 const today=new Date();const localDate=d=>{const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)};const monthNow=localDate(today).slice(0,7);$('mealdate').value=localDate(today);$('monthfilter').value=monthNow;$('mealmonth').value=monthNow;
 function normalizeProjectUrl(value){return String(value||'').trim().replace(/\/rest\/v1\/?$/i,'').replace(/\/+$/,'')}
 function config(){try{const c=JSON.parse(localStorage.getItem('mb_supabase')||'{}');if(c.url){const normalized=normalizeProjectUrl(c.url);if(normalized!==c.url){c.url=normalized;localStorage.setItem('mb_supabase',JSON.stringify(c))}}return c}catch{return {}}}
@@ -221,58 +221,19 @@ function fmt(v){if(v==null||v==='')return '—';const n=Number(String(v).replace
 function tableHtml(headers,rows){return `<div class="new-table-wrap"><table class="new-table"><thead><tr>${headers.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 function monthSheet(){const m=monthStart();let match=sheets.find(x=>{const n=x.sheet_name.toLowerCase().replace(/\s/g,'');return n===m.slice(0,3).toLowerCase()+m.slice(2,4)||n===new Date(m+'-01').toLocaleString('en',{month:'short'}).toLowerCase()+m.slice(2,4)});return match||sheets[sheets.length-1]}
 function renderFiveTabs(){
- const sh=monthSheet();if(!sh){['fiveExpenses','fiveCalc','fiveFuel'].forEach(id=>$(id).innerHTML='<p class="muted">No monthly workbook records found yet. An administrator can import the existing Excel workbook from Admin tools.</p>');renderFiveMeals();renderNewBills();renderPetrolCash();return}
- activeSheet=sh.sheet_name;const rows=sh.rows||[];
+ const sh=monthSheet();if(sh)activeSheet=sh.sheet_name;const rows=sh?.rows||[];
  // Tab 1 uses the shared daily_meals table, not a duplicate workbook copy.
  renderFiveMeals();
- // Tab 2: source workbook has expense labels and amounts in adjacent columns.
- // Detect their positions within the expenses area, since imported sheets can
- // have different leading blank columns. Include the first expense row.
- const parseExpenseAmount=v=>{
-   const t=String(v??'').trim();
-   if(!/^\$?\s*-?[\d,]+(?:\.\d{1,2})?$/.test(t))return null;
-   const n=Number(t.replace(/[$,\s]/g,''));return Number.isFinite(n)?n:null;
- };
- const candidateColumns=[];
- for(let c=4;c<=8;c++){
-   let score=0;
-   for(let r=2;r<Math.min(rows.length,34);r++){
-     const name=String(cell(rows,r,c)??'').trim();
-     if(name&&!/^(total|expense|amount|item:?|list)$/i.test(name)&&parseExpenseAmount(cell(rows,r,c+1))!==null)score++;
-   }
-   candidateColumns.push({c,score});
- }
- candidateColumns.sort((a,b)=>b.score-a.score);
- const expenseCol=candidateColumns[0]?.score>0?candidateColumns[0].c:null;
- const expenseRows=[];let expenseTotal=0;
- if(expenseCol!==null){
-   for(let r=2;r<Math.min(rows.length,34);r++){
-     const name=String(cell(rows,r,expenseCol)??'').trim();
-     const n=parseExpenseAmount(cell(rows,r,expenseCol+1));
-     if(!name||/^(total|expense|amount|item:?|list)$/i.test(name)||n===null)continue;
-     expenseTotal+=n;expenseRows.push([esc(name),money(n)]);
-   }
- }
- const requestedMonth=monthStart();
- const requestedLabel=new Date(requestedMonth+'-01T12:00:00').toLocaleDateString('en-SG',{month:'long',year:'numeric'});
- const actualSheet=sh.sheet_name;
- const normalizedSheet=actualSheet.toLowerCase().replace(/[^a-z0-9]/g,'');
- const requestedSheet=new Date(requestedMonth+'-01T12:00:00').toLocaleDateString('en-US',{month:'short'}).toLowerCase()+requestedMonth.slice(2,4);
- const sourceNotice=normalizedSheet!==requestedSheet
-   ?`<p class="notice" style="margin:0 0 12px">No workbook sheet matched ${esc(requestedLabel)}. Showing saved worksheet <strong>${esc(actualSheet)}</strong> instead; these are not confirmed ${esc(requestedLabel)} expenses.</p>`
-   :`<p class="muted" style="margin:0 0 12px">Workbook: ${esc(actualSheet)}</p>`;
- const totalCard=expenseRows.length?`<div class="stat" style="margin-bottom:12px;text-align:center"><div class="muted">Workbook expenses total</div><div class="num">${money(expenseTotal)}</div></div>`:'';
- const expenseDisplay=expenseRows.length?[...expenseRows,['<strong>Total</strong>',`<strong>${money(expenseTotal)}</strong>`]]:[['No expense entries found','—']];
- $('fiveExpenses').innerHTML=sourceNotice+totalCard+tableHtml(['Expense','Amount (SGD)'],expenseDisplay);
- $('edit2').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
+ // Tab 2 is independent from the archived workbook.
+ renderNewExpenses();
  // Tab 3: Eileen-to-Vincent transfer. Use ONLY the selected month's
  // Supabase meal records and an exact matching workbook sheet for expenses.
  const mealList=meals.filter(x=>x.meal_date.startsWith(monthStart()));
  const vin=mealList.filter(x=>x.person==='Vincent').reduce((a,x)=>a+Number(x.amount),0);
  const eil=mealList.filter(x=>x.person==='Eileen').reduce((a,x)=>a+Number(x.amount),0);
  const ez=mealList.filter(x=>x.person==='Eileen Ezlink').reduce((a,x)=>a+Number(x.amount),0);
- const hasMatchingSheet=normalizedSheet===requestedSheet;
- const billTotal=hasMatchingSheet?expenseTotal:0;
+ const selectedExpenses=newExpenses.filter(x=>x.expense_month===requestedMonth);
+ const billTotal=selectedExpenses.reduce((total,x)=>total+Number(x.amount),0);
  const transfer=(vin+billTotal)/2+ez-eil/2;
  const calcRows=[
    ['Vincent meals',money(vin)],
@@ -283,15 +244,20 @@ function renderFiveTabs(){
    ['Deduct half Eileen meals',`− ${money(eil/2)}`],
    ['<strong>Eileen to Transfer Vincent</strong>',`<strong>${money(transfer)}</strong>`]
  ];
- const noExpensesNotice=!hasMatchingSheet
-   ?`<p class="notice" style="margin:0 0 12px">Monthly expenses: <strong>$0.00 — No record entered</strong> for ${esc(requestedLabel)}. The saved ${esc(actualSheet)} workbook is not included in this calculation.</p>`
-   :expenseRows.length===0
-     ?'<p class="notice" style="margin:0 0 12px">Monthly expenses: <strong>$0.00 — No record entered</strong>.</p>'
-     :`<p class="muted" style="margin:0 0 12px">Expenses from ${esc(actualSheet)}; meals and Ezlink from ${esc(requestedLabel)}.</p>`;
+ const noExpensesNotice=newExpenseError
+   ?`<p class="notice">Monthly expenses could not be loaded: ${esc(newExpenseError.message)}</p>`
+   :selectedExpenses.length===0
+   ?'<p class="notice" style="margin:0 0 12px">Monthly expenses: <strong>$0.00 — No record entered</strong> for the selected month. Archived workbook expenses are excluded.</p>'
+   :'<p class="muted" style="margin:0 0 12px">Monthly expenses use new Tab 2 records only. Archived workbook amounts are excluded.</p>';
  $('fiveCalc').innerHTML=noExpensesNotice+
    `<div class="stat" style="margin-bottom:12px;text-align:center"><div class="muted">Eileen to Transfer Vincent</div><div class="num">${money(transfer)}</div></div>`+
    tableHtml(['Calculation','Amount (SGD)'],calcRows)+
    '<p class="muted" style="margin-top:12px">Formula: ((Vincent meals + monthly expenses) ÷ 2) + Eileen Ezlink − (Eileen meals ÷ 2). All values use the selected month.</p>';
+ // Legacy workbook display is overwritten by the independent Tab 4 renderer below.
+ const actualSheet=sh?.sheet_name||'archive';
+ const normalizedSheet=actualSheet.toLowerCase().replace(/[^a-z0-9]/g,'');
+ const requestedSheet=new Date(requestedMonth+'-01T12:00:00').toLocaleDateString('en-US',{month:'short'}).toLowerCase()+requestedMonth.slice(2,4);
+ const requestedLabel=new Date(requestedMonth+'-01T12:00:00').toLocaleDateString('en-SG',{month:'long',year:'numeric'});
  // Tab 4: display due dates below bill names and keep recurring items
  // after one-time payments. Classification uses only explicit workbook text;
  // a due date by itself is not proof that a payment recurs.
@@ -371,8 +337,51 @@ function renderFiveTabs(){
  $('mealform2').onsubmit=async e=>{e.preventDefault();$('mealmsg2').textContent='Saving…';const old=editingMealId?meals.find(x=>x.id===editingMealId):null;if(editingMealId&&(!old||!canEditMeal(old))){$('mealmsg2').textContent='You cannot edit this record.';return}const rec={person:isAdmin?$('person2').value:'Eileen',meal_date:$('date2').value,amount:Number($('amount2').value),note:$('note2').value.trim()||null};let result;if(old){result=await sb.from('daily_meals').update(rec).eq('id',old.id).select('id')}else{result=await sb.from('daily_meals').insert({...rec,created_by:user.id}).select('id')}if(result.error||!result.data?.length){$('mealmsg2').textContent='Could not save: '+(result.error?.message||'No record changed; check permissions.');return}resetMealForm2();$('mealmsg2').textContent='Saved and shared.';await refreshAll()};
 window.openLegacyAdmin=()=>{if(!isAdmin)return;document.querySelectorAll('.tab-page').forEach(x=>x.classList.add('hidden'));$('fiveTabs').classList.add('legacy-ui');$('fivePages').classList.add('legacy-ui');$('page-admin').parentElement.classList.remove('legacy-ui');$('page-admin').classList.remove('hidden');if(!$('backFiveTabs')){const b=document.createElement('button');b.id='backFiveTabs';b.className='primary';b.textContent='← Back to five tabs';b.style.marginBottom='12px';b.onclick=()=>{ $('page-admin').classList.add('hidden');$('page-admin').parentElement.classList.add('legacy-ui');$('fiveTabs').classList.remove('legacy-ui');$('fivePages').classList.remove('legacy-ui');document.querySelectorAll('.tab-page').forEach(page=>page.classList.toggle('hidden',page.id!=='five-'+fiveActive));document.querySelectorAll('[data-five]').forEach(tab=>tab.classList.toggle('active',Number(tab.dataset.five)===fiveActive));renderFiveTabs()};$('page-admin').prepend(b)}renderSheetEditor()};
 const oldRefreshAll=refreshAll;
-refreshAll=async()=>{await oldRefreshAll();renderFiveTabs()};
+refreshAll=async()=>{await oldRefreshAll();await loadNewExpenses();renderFiveTabs()};
 
+
+// New Tab 2: separate monthly expenses. The workbook is an archive only.
+async function loadNewExpenses(){
+ const {data,error}=await sb.from('monthly_expense_entries').select('*').order('created_at',{ascending:true});
+ newExpenseError=error;newExpenses=error?[]:(data||[]);
+}
+function renderNewExpenses(){
+ const root=$('fiveExpenses'),edit=$('edit2');if(!root||!edit)return;
+ if(newExpenseError){root.innerHTML='<p class="notice">New expenses database is not ready: '+esc(newExpenseError.message)+'. Please run the Tab 2 SQL setup.</p>';edit.innerHTML='';return;}
+ const month=monthStart(),list=newExpenses.filter(x=>x.expense_month===month),total=list.reduce((n,x)=>n+Number(x.amount),0);
+ root.innerHTML=`<div class="grid tab4-summary-grid" style="margin:12px 0"><div class="stat" style="text-align:center"><div class="muted">Monthly expenses total</div><div class="num">${money(total)}</div></div></div>
+ <section class="bill-section"><div class="row between" style="align-items:center;gap:8px"><h3 class="bill-section-title" style="margin:0">Expense Records</h3>${isAdmin?'<button type="button" class="primary" id="expenseAdd">+ Add Expense</button>':''}</div>
+ <div class="bill-list" style="margin-top:10px">${list.length?list.map(x=>`<div class="bill-item"><div class="bill-item-main"><div class="bill-item-name">${esc(x.category)}</div></div><div class="bill-item-amount">${money(x.amount)}${isAdmin?`<div class="row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="small" data-exp-edit="${esc(x.id)}">Edit</button><button type="button" class="small danger" data-exp-delete="${esc(x.id)}">Delete</button></div>`:''}</div></div>`).join(''):'<div class="bill-empty">$0.00 — No record entered</div>'}
+ <div class="bill-item bill-total"><div class="bill-item-main"><div class="bill-item-name">Monthly total</div></div><div class="bill-item-amount">${money(total)}</div></div></div></section>`;
+ root.querySelector('#expenseAdd')?.addEventListener('click',()=>openExpenseEditor(null));
+ root.querySelectorAll('[data-exp-edit]').forEach(b=>b.onclick=()=>openExpenseEditor(b.dataset.expEdit));
+ root.querySelectorAll('[data-exp-delete]').forEach(b=>b.onclick=()=>deleteNewExpense(b.dataset.expDelete));
+ const sh=sheets.find(x=>x.sheet_name.toLowerCase().replace(/[^a-z0-9]/g,'')===new Date(month+'-01T12:00:00').toLocaleDateString('en-US',{month:'short'}).toLowerCase()+month.slice(2,4));
+ edit.innerHTML=`<div id="expenseEditor"></div><details style="margin-top:16px"><summary style="cursor:pointer;font-weight:650">Old workbook archive (read-only)</summary><p class="muted">Historical worksheet records are kept for reference. They are not included in the new expenses total or Tab 3 calculation.</p>${sh?sheetTable(sh,false):'<p class="muted">No archived worksheet for this month.</p>'}</details>`;
+}
+function openExpenseEditor(id){
+ if(!isAdmin)return;editingExpenseId=id;const old=newExpenses.find(x=>x.id===id),root=$('expenseEditor');
+ root.innerHTML=`<form id="newExpenseForm" style="margin-top:14px;padding:14px;border:1px solid #dce5ef;border-radius:12px"><h3 class="section-title">${old?'Edit':'Add'} Expense</h3><p class="muted">Selected month: ${esc(monthStart())}</p><label>Category</label><input id="newExpenseCategory" maxlength="120" required placeholder="e.g. Electricity"><label>Amount (SGD)</label><input id="newExpenseAmount" type="number" min="0.01" step="0.01" required placeholder="0.00"><div class="row" style="margin-top:12px"><button class="primary" type="submit">Save</button><button type="button" id="newExpenseCancel">Cancel</button></div><p id="newExpenseMessage" class="muted"></p></form>`;
+ $('newExpenseCategory').value=old?.category||'';$('newExpenseAmount').value=old?.amount??'';
+ $('newExpenseCancel').onclick=()=>root.innerHTML='';$('newExpenseForm').onsubmit=saveNewExpense;
+ root.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+async function saveNewExpense(e){
+ e.preventDefault();if(!isAdmin)return;
+ const msg=$('newExpenseMessage'),category=$('newExpenseCategory').value.trim(),amount=Number($('newExpenseAmount').value);
+ if(!category||!Number.isFinite(amount)||amount<=0){msg.textContent='Enter a category and an amount greater than $0.00.';return;}
+ msg.textContent='Saving…';const record={category,amount,expense_month:monthStart()};
+ const result=editingExpenseId?await sb.from('monthly_expense_entries').update(record).eq('id',editingExpenseId).select('id'):await sb.from('monthly_expense_entries').insert({...record,created_by:user.id}).select('id');
+ if(result.error||!result.data?.length){msg.textContent='Could not save: '+(result.error?.message||'Check permissions.');return;}
+ editingExpenseId=null;await loadNewExpenses();renderFiveTabs();
+}
+async function deleteNewExpense(id){
+ if(!isAdmin)return;const record=newExpenses.find(x=>x.id===id);if(!record)return;
+ if(!confirm('Delete '+record.category+' — '+money(record.amount)+' from '+record.expense_month+'?'))return;
+ const {data,error}=await sb.from('monthly_expense_entries').delete().eq('id',id).select('id');
+ if(error||!data?.length){alert('Could not delete: '+(error?.message||'Check permissions.'));return;}
+ await loadNewExpenses();renderFiveTabs();
+}
 
 // New Tab 4: independent payment records; workbook is a read-only archive.
 async function loadBillPayments(){
