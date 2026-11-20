@@ -362,7 +362,15 @@ async function loadBillPayments(){
 const billMonthDate=m=>m+'-01';
 const previousBillMonth=m=>{const [y,mm]=m.split('-').map(Number);return new Date(Date.UTC(y,mm-2,1)).toISOString().slice(0,10)};
 const billActive=(r,m)=>r.effective_from<=billMonthDate(m)&&(!r.effective_to||r.effective_to>=billMonthDate(m));
-const billLine=r=>`<div class="bill-item"><div class="bill-item-main"><div class="bill-item-name">${esc(r.payment_name)}</div><div class="bill-item-due">${r.due_day?'Due: '+r.due_day+' of each month':'No due day'}${r.category==='one_time'?' · One-time':''}</div></div><div class="bill-item-amount">${money(r.amount)}${isAdmin?`<div class="row" style="margin-top:6px;justify-content:flex-end"><button type="button" class="small" data-bedit="${esc(r.id)}">Edit</button><button type="button" class="small danger" data-bstop="${esc(r.id)}">${r.category==='one_time'?'Delete':'Stop'}</button></div>`:''}</div></div>`;
+const billDueText=r=>{
+ if(!r.due_day)return r.category==='one_time'?'One-time · No due date':'No due day set';
+ if(r.category!=='one_time')return 'Due: '+r.due_day+' of each month';
+ const [year,month]=monthStart().split('-').map(Number);
+ const date=new Date(year,month-1,r.due_day);
+ if(date.getMonth()!==month-1)return 'Due day '+r.due_day+' · One-time';
+ return 'Due: '+date.toLocaleDateString('en-SG',{day:'numeric',month:'long',year:'numeric'})+' · One-time';
+};
+const billLine=r=>`<div class="bill-item"><div class="bill-item-main"><div class="bill-item-name">${esc(r.payment_name)}</div><div class="bill-item-due">${esc(billDueText(r))}</div></div><div class="bill-item-amount">${money(r.amount)}${isAdmin?`<div class="row" style="margin-top:6px;justify-content:flex-end"><button type="button" class="small" data-bedit="${esc(r.id)}">Edit</button><button type="button" class="small danger" data-bstop="${esc(r.id)}">${r.category==='one_time'?'Delete':'Stop'}</button></div>`:''}</div></div>`;
 function renderNewBills(){
  const status=$('tab4Status');if(!status)return;
  if(billLoadError){status.textContent='New payment database not ready: '+billLoadError.message+' — Please run the Tab 4 SQL setup first.';$('fiveCards').innerHTML='';$('edit4').innerHTML='';$('tab4Summary').innerHTML='';$('tab4Archive').innerHTML='';return}
