@@ -135,7 +135,7 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 <section id="five-1" class="tab-page"><div class="card meal-summary-card"><div class="grid" id="mealStats2"></div></div><div class="card meal-form-card"><h2 class="section-title">Daily meals</h2><p class="muted">All shared users can add daily meal records.</p><form id="mealform2"><div class="grid"><div><label>Person</label><select id="person2"><option>Vincent</option><option>Eileen</option><option>Eileen Ezlink</option></select></div><div><label>Date</label><input id="date2" type="date" required></div><div><label>Amount (SGD)</label><input id="amount2" type="number" min="0.01" step="0.01" required placeholder="0.00"></div><div><label>Note (optional)</label><input id="note2" maxlength="120" placeholder="Lunch / dinner"></div></div><button class="primary" type="submit" style="width:100%;margin-top:14px">Add meal</button><button type="button" id="cancelMealEdit2" class="hidden" style="margin-top:8px">Cancel edit</button><p id="mealmsg2" class="muted"></p></form></div><div class="card meal-records-card"><div class="row between"><h2 class="section-title">Meal records</h2><span class="pill" id="mealcount2">0 entries</span></div><div id="fiveMeals"></div></div></section>
 <section id="five-2" class="tab-page hidden"><div class="card"><h2 class="section-title">Monthly expenses</h2><p class="muted">Administrator input · Standard users can view.</p><div id="fiveExpenses"></div><div id="edit2"></div></div></section>
 <section id="five-3" class="tab-page hidden"><div class="card"><h2 class="section-title">Monthly calculation</h2><p class="muted">Calculated automatically from the selected month's meal and expense records.</p><div id="fiveCalc"></div></div></section>
-<section id="five-4" class="tab-page hidden"><div class="card"><h2 class="section-title">Credit cards & payments</h2><p class="muted">Administrator input · Standard users can view.</p><div id="fiveCards"></div><div id="edit4"></div></div></section>
+<section id="five-4" class="tab-page hidden"><div class="card"><h2 class="section-title">Credit cards & payments</h2><p class="muted">Administrator input · Standard users can view.</p><div id="tab4Status" class="muted">Loading payment records…</div><div id="tab4Summary"></div><div id="fiveCards"></div><div id="edit4"></div><div id="tab4Archive" style="margin-top:16px"></div></div></section>
 <section id="five-5" class="tab-page hidden"><div class="card"><h2 class="section-title">Petrol & Cash Card</h2><p class="muted">Administrator input · Standard users can view.</p><div id="fiveFuel"></div><div id="edit5"></div></div></section>
 </div>
 <div class="legacy-ui"><button id="admintab" class="hidden" data-tab="admin"></button>
@@ -146,7 +146,7 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 </div></div><div class="foot">Monthly Bill · Shared records · SGD</div></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
-const $=id=>document.getElementById(id);let sb=null,user=null,isAdmin=false,meals=[],sheets=[],activeSheet=null;
+const $=id=>document.getElementById(id);let sb=null,user=null,isAdmin=false,meals=[],sheets=[],activeSheet=null;let billPayments=[],billLoadError=null,billEditing=null;
 const today=new Date();const localDate=d=>{const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)};const monthNow=localDate(today).slice(0,7);$('mealdate').value=localDate(today);$('monthfilter').value=monthNow;$('mealmonth').value=monthNow;
 function normalizeProjectUrl(value){return String(value||'').trim().replace(/\/rest\/v1\/?$/i,'').replace(/\/+$/,'')}
 function config(){try{const c=JSON.parse(localStorage.getItem('mb_supabase')||'{}');if(c.url){const normalized=normalizeProjectUrl(c.url);if(normalized!==c.url){c.url=normalized;localStorage.setItem('mb_supabase',JSON.stringify(c))}}return c}catch{return {}}}
@@ -164,7 +164,7 @@ $('signout').onclick=async()=>{await sb.auth.signOut();location.reload()};
 async function showApp(){ $('setup').classList.add('hidden');$('auth').classList.add('hidden');$('app').classList.remove('hidden');$('signedin').textContent=user.email||'Signed in';const {data:adm}=await sb.rpc('is_admin');isAdmin=!!adm;$('rolepill').textContent=isAdmin?'Administrator':'Daily meal entry';$('admintab').classList.toggle('hidden',!isAdmin);await refreshAll() }
 function money(n){return '$'+Number(n||0).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function refreshAll(){await loadMeals();await loadSheets();renderMeals();renderSummary();renderBills();if(isAdmin)renderSheetEditor()}
+async function refreshAll(){await loadMeals();await loadSheets();await loadBillPayments();renderMeals();renderSummary();renderBills();if(isAdmin)renderSheetEditor()}
 async function loadMeals(){const {data,error}=await sb.from('daily_meals').select('*').order('meal_date',{ascending:false}).order('created_at',{ascending:false}).limit(1000);if(error){console.error(error);return}meals=data||[]}
 async function loadSheets(){const {data,error}=await sb.from('monthly_sheets').select('*').order('sheet_order',{ascending:true});if(error){console.error(error);return}sheets=data||[];if(!activeSheet&&sheets.length)activeSheet=sheets[0].sheet_name}
 $('mealform').onsubmit=async e=>{e.preventDefault();$('mealmsg').textContent='Saving…';const record={person:$('person').value,meal_date:$('mealdate').value,amount:Number($('amount').value),note:$('note').value.trim()||null,created_by:user.id};const {error}=await sb.from('daily_meals').insert(record);if(error){$('mealmsg').textContent='Could not save: '+error.message;return}$('amount').value='';$('note').value='';$('mealmsg').textContent='Meal expense saved and shared.';await refreshAll()};
@@ -191,14 +191,14 @@ document.querySelectorAll('[data-five]').forEach(b=>b.addEventListener('click',(
  document.querySelectorAll('[data-five]').forEach(x=>x.classList.toggle('active',x===b));
  document.querySelectorAll('.tab-page').forEach(x=>x.classList.toggle('hidden',x.id!=='five-'+fiveActive));
 }));
-$('fiveMonth').onchange=()=>renderFiveTabs();
+$('fiveMonth').onchange=()=>{renderFiveTabs();renderNewBills()};
 function sheetRows(){const sh=sheets.find(x=>x.sheet_name===activeSheet)||sheets[sheets.length-1];return sh?.rows||[]}
 function cell(rows,r,c){return rows?.[r]?.[c]??''}
 function fmt(v){if(v==null||v==='')return '—';const n=Number(String(v).replace(/[$,]/g,''));return Number.isFinite(n)&&String(v).trim()!==''?money(n):esc(v)}
 function tableHtml(headers,rows){return `<div class="new-table-wrap"><table class="new-table"><thead><tr>${headers.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 function monthSheet(){const m=monthStart();let match=sheets.find(x=>{const n=x.sheet_name.toLowerCase().replace(/\s/g,'');return n===m.slice(0,3).toLowerCase()+m.slice(2,4)||n===new Date(m+'-01').toLocaleString('en',{month:'short'}).toLowerCase()+m.slice(2,4)});return match||sheets[sheets.length-1]}
 function renderFiveTabs(){
- const sh=monthSheet();if(!sh){['fiveExpenses','fiveCalc','fiveCards','fiveFuel'].forEach(id=>$(id).innerHTML='<p class="muted">No monthly workbook records found yet. An administrator can import the existing Excel workbook from Admin tools.</p>');renderFiveMeals();return}
+ const sh=monthSheet();if(!sh){['fiveExpenses','fiveCalc','fiveFuel'].forEach(id=>$(id).innerHTML='<p class="muted">No monthly workbook records found yet. An administrator can import the existing Excel workbook from Admin tools.</p>');renderFiveMeals();renderNewBills();return}
  activeSheet=sh.sheet_name;const rows=sh.rows||[];
  // Tab 1 uses the shared daily_meals table, not a duplicate workbook copy.
  renderFiveMeals();
@@ -324,7 +324,8 @@ function renderFiveTabs(){
    ?oneTimeMarkup+recurringMarkup+standaloneMarkup+'<p class="muted" style="margin:8px 0 0">Car Insurance is classified as recurring. Other items are grouped using the recurring labels in the workbook. This view does not create or stop recurring schedules.</p>'
    :billNotice+`<div class="stat" style="margin-bottom:12px;text-align:center"><div class="muted">Credit cards & payments — ${esc(requestedLabel)}</div><div class="num">$0.00</div></div>`;
 
- $('edit4').innerHTML=isAdmin?'<button class="primary" onclick="openLegacyAdmin()">Edit monthly workbook</button>':'';
+ // Tab 4 is now rendered from its own Supabase table, not workbook cells.
+ renderNewBills();
 
  // Tab 5: workbook columns R:T (array indexes 16 and 18 after the blank leading column is omitted).
  const fuelRows=[];let petrolTotal=0,cashTotal=0;for(let r=0;r<rows.length;r++){const day=Number(String(cell(rows,r,0)).trim()),petrol=cell(rows,r,16),cash=cell(rows,r,18);if(!Number.isInteger(day)||day<1||day>=20)continue;const hasPetrol=petrol!==''&&petrol!=null,hasCash=cash!==''&&cash!=null;if(!hasPetrol&&!hasCash)continue;if(hasPetrol)petrolTotal+=Number(String(petrol).replace(/[$,]/g,'')||0);if(hasCash)cashTotal+=Number(String(cash).replace(/[$,]/g,'')||0);fuelRows.push([String(day),fmt(petrol),fmt(cash)])}
@@ -351,6 +352,64 @@ function renderFiveTabs(){
 window.openLegacyAdmin=()=>{if(!isAdmin)return;document.querySelectorAll('.tab-page').forEach(x=>x.classList.add('hidden'));$('fiveTabs').classList.add('legacy-ui');$('fivePages').classList.add('legacy-ui');$('page-admin').parentElement.classList.remove('legacy-ui');$('page-admin').classList.remove('hidden');if(!$('backFiveTabs')){const b=document.createElement('button');b.id='backFiveTabs';b.className='primary';b.textContent='← Back to five tabs';b.style.marginBottom='12px';b.onclick=()=>{ $('page-admin').classList.add('hidden');$('page-admin').parentElement.classList.add('legacy-ui');$('fiveTabs').classList.remove('legacy-ui');$('fivePages').classList.remove('legacy-ui');document.querySelectorAll('.tab-page').forEach(page=>page.classList.toggle('hidden',page.id!=='five-'+fiveActive));document.querySelectorAll('[data-five]').forEach(tab=>tab.classList.toggle('active',Number(tab.dataset.five)===fiveActive));renderFiveTabs()};$('page-admin').prepend(b)}renderSheetEditor()};
 const oldRefreshAll=refreshAll;
 refreshAll=async()=>{await oldRefreshAll();renderFiveTabs()};
+
+
+// New Tab 4: independent payment records; workbook is a read-only archive.
+async function loadBillPayments(){
+ const {data,error}=await sb.from('bill_payments').select('*').order('effective_from',{ascending:true});
+ billLoadError=error;billPayments=error?[]:(data||[]);
+}
+const billMonthDate=m=>m+'-01';
+const previousBillMonth=m=>{const [y,mm]=m.split('-').map(Number);return new Date(Date.UTC(y,mm-2,1)).toISOString().slice(0,10)};
+const billActive=(r,m)=>r.effective_from<=billMonthDate(m)&&(!r.effective_to||r.effective_to>=billMonthDate(m));
+const billLine=r=>`<div class="bill-item"><div class="bill-item-main"><div class="bill-item-name">${esc(r.payment_name)}</div><div class="bill-item-due">${r.due_day?'Due: '+r.due_day+' of each month':'No due day'}${r.category==='one_time'?' · One-time':''}</div></div><div class="bill-item-amount">${money(r.amount)}${isAdmin?`<div class="row" style="margin-top:6px;justify-content:flex-end"><button type="button" class="small" data-bedit="${esc(r.id)}">Edit</button><button type="button" class="small danger" data-bstop="${esc(r.id)}">${r.category==='one_time'?'Delete':'Stop'}</button></div>`:''}</div></div>`;
+function renderNewBills(){
+ const status=$('tab4Status');if(!status)return;
+ if(billLoadError){status.textContent='New payment database not ready: '+billLoadError.message+' — Please run the Tab 4 SQL setup first.';$('fiveCards').innerHTML='';$('edit4').innerHTML='';$('tab4Summary').innerHTML='';$('tab4Archive').innerHTML='';return}
+ status.textContent='New payment records · selected month '+monthStart();
+ const active=billPayments.filter(r=>billActive(r,monthStart()));
+ const groups=[['one_time','1. One-Time Payments'],['recurring','2. Recurring Monthly Payments'],['standalone','3. Standalone Recurring Payments']];
+ const sum=cat=>active.filter(r=>r.category===cat).reduce((n,r)=>n+Number(r.amount),0);
+ $('tab4Summary').innerHTML=`<div class="grid" style="margin:12px 0"><div class="stat"><div class="muted">Monthly total (excluding standalone)</div><div class="num">${money(sum('one_time')+sum('recurring'))}</div></div><div class="stat"><div class="muted">Standalone recurring total</div><div class="num">${money(sum('standalone'))}</div></div></div>`;
+ $('fiveCards').innerHTML=groups.map(([key,title])=>{const records=active.filter(r=>r.category===key);return `<section class="bill-section"><h3 class="bill-section-title">${title}</h3><div class="bill-list">${records.length?records.map(billLine).join(''):'<div class="bill-empty">$0.00 — No record entered</div>'}<div class="bill-item bill-total"><div class="bill-item-main"><div class="bill-item-name">${key==='standalone'?'Standalone total':key==='recurring'?'Recurring total':'One-time total'}</div></div><div class="bill-item-amount">${money(sum(key))}</div></div></div></section>`}).join('');
+ $('fiveCards').querySelectorAll('[data-bedit]').forEach(b=>b.onclick=()=>openBillEditor(b.dataset.bedit));
+ $('fiveCards').querySelectorAll('[data-bstop]').forEach(b=>b.onclick=()=>stopBillPayment(b.dataset.bstop));
+ $('edit4').innerHTML=isAdmin?`<button type="button" class="primary" id="newBillButton">+ Add payment</button><div id="billEditor"></div>`:'';
+ if(isAdmin)$('newBillButton').onclick=()=>openBillEditor(null);
+ const sh=sheets.find(x=>{const n=x.sheet_name.toLowerCase().replace(/\s/g,'');return n===new Date(monthStart()+'-01').toLocaleString('en',{month:'short'}).toLowerCase()+monthStart().slice(2,4)});
+ $('tab4Archive').innerHTML=`<details><summary style="cursor:pointer;font-weight:650">Old workbook archive (read-only)</summary><p class="muted">Historical worksheet data only. It is not included in the new payment totals.</p>${sh?sheetTable(sh,false):'<p class="muted">No archived worksheet for the selected month.</p>'}</details>`;
+}
+function openBillEditor(id){
+ if(!isAdmin)return;const r=billPayments.find(x=>x.id===id);billEditing=id||null;
+ const form=$('billEditor');form.innerHTML=`<form id="billForm" style="margin-top:12px;padding:14px;border:1px solid #dce5ef;border-radius:12px"><h3 class="section-title">${r?'Edit payment':'Add payment'}</h3><label>Payment name</label><input id="billName" maxlength="120" required><label>Amount (SGD)</label><input id="billAmount" type="number" min="0" step="0.01" required><label>Due day (1–31, optional)</label><input id="billDue" type="number" min="1" max="31"><label>Payment type</label><select id="billCategory"><option value="one_time">One-time payment</option><option value="recurring">Recurring monthly payment</option><option value="standalone">Standalone recurring (separate total)</option></select><p class="muted">${r&&r.category!=='one_time'?'Changes take effect from the selected month onward. Previous months remain unchanged.':'One-time payments apply to the selected month only.'}</p><div class="row" style="margin-top:12px"><button type="submit" class="primary">Save payment</button><button type="button" id="billCancel">Cancel</button></div><p class="muted" id="billMessage"></p></form>`;
+ $('billName').value=r?.payment_name||'';$('billAmount').value=r?.amount??'';$('billDue').value=r?.due_day??'';$('billCategory').value=r?.category||'one_time';
+ $('billCancel').onclick=()=>form.innerHTML='';$('billForm').onsubmit=saveBillPayment;
+ form.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+async function saveBillPayment(e){
+ e.preventDefault();if(!isAdmin)return;
+ const msg=$('billMessage'),m=billMonthDate(monthStart()),old=billPayments.find(r=>r.id===billEditing);
+ const name=$('billName').value.trim(),amount=Number($('billAmount').value),due=$('billDue').value?Number($('billDue').value):null,category=$('billCategory').value;
+ if(!name||!Number.isFinite(amount)||amount<0||(due!==null&&(due<1||due>31))){msg.textContent='Please check the payment details.';return}
+ if(old&&!billActive(old,monthStart())){msg.textContent='Select a month where this payment is active.';return}
+ if(old&&old.category==='one_time'&&category!=='one_time'){msg.textContent='Create a new recurring payment instead of converting a historical one-time record.';return}
+ if(old&&old.category!=='one_time'&&category==='one_time'){msg.textContent='Create a separate one-time payment instead.';return}
+ msg.textContent='Saving…';const record={payment_name:name,amount,due_day:due,category};
+ let error=null;
+ if(!old){({error}=await sb.from('bill_payments').insert({...record,effective_from:m,created_by:user.id}));}
+ else if(old.category==='one_time'){({error}=await sb.from('bill_payments').update(record).eq('id',old.id));}
+ else{const result=await sb.rpc('bill_change_schedule',{p_id:old.id,p_effective_from:m,p_stop:false,p_name:name,p_amount:amount,p_due_day:due,p_category:category});error=result.error;}
+ if(error){msg.textContent='Could not save: '+error.message;return}
+ await loadBillPayments();renderNewBills();
+}
+async function stopBillPayment(id){
+ if(!isAdmin)return;const r=billPayments.find(x=>x.id===id);if(!r||!billActive(r,monthStart()))return;
+ const one=r.category==='one_time';if(!confirm(one?'Delete this one-time payment?':'Stop this recurring payment from '+monthStart()+' onward? Earlier months will remain unchanged.'))return;
+ let error;
+ if(one)({error}=await sb.from('bill_payments').delete().eq('id',id));
+ else ({error}=await sb.rpc('bill_change_schedule',{p_id:id,p_effective_from:billMonthDate(monthStart()),p_stop:true}));
+ if(error){alert('Could not update: '+error.message);return}await loadBillPayments();renderNewBills();
+}
 
 init();
 </script></body></html>
