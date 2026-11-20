@@ -115,9 +115,12 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 #fiveCards .bill-total .bill-item-name{font-weight:750}
 #fiveCards .bill-empty{font-size:13px;color:#65736c;padding:12px}
 
-/* Tab 4 summary: centre labels and monetary amounts only */
-#tab4Summary .tab4-summary-grid .stat{text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;}
-#tab4Summary .tab4-summary-grid .num{text-align:center;width:100%;font-variant-numeric:tabular-nums;}
+/* Tab 4 summary: centre both figures on the same horizontal baseline.
+   Give the two labels flexible room, while keeping values anchored to the bottom
+   of equal-height grid cells. This affects Tab 4 summary only. */
+#tab4Summary .tab4-summary-grid .stat{display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;min-height:114px;}
+#tab4Summary .tab4-summary-grid .stat>.muted{width:100%;flex:1 1 auto;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.3;}
+#tab4Summary .tab4-summary-grid .num{flex:0 0 auto;text-align:center;width:100%;margin-top:8px;font-variant-numeric:tabular-nums;white-space:nowrap;}
 </style>
 </head><body>
 <header><div class="eyebrow">Shared household tracker</div><h1>Monthly Bills</h1><p>Daily meals, monthly records and bills in one place.</p></header>
