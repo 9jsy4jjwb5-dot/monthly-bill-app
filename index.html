@@ -137,6 +137,22 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 #fiveFuel .tab4-summary-grid .stat{display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;min-height:114px}
 #fiveFuel .tab4-summary-grid .stat>.muted{width:100%;flex:1 1 auto;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.3}
 #fiveFuel .tab4-summary-grid .num{flex:0 0 auto;text-align:center;width:100%;margin-top:8px;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Calculation Settings iPhone alignment fix */
+
+/* Calculation Settings iPhone alignment fix: prevent native month picker overflow */
+#calculationSettingsUI, #calculationSettingsUI > div {width:100%;max-width:100%;min-width:0;}
+#calculationSettingsUI label {display:block;min-width:0;max-width:100%;width:100%;}
+#calculationSettingsUI #calcEffectiveMonth,
+#calculationSettingsUI #calcVinShare {
+  display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%;
+  margin:6px 0 0;height:46px;min-height:46px;padding:10px 12px;
+  font-size:16px;line-height:normal;border-radius:11px;
+}
+#calculationSettingsUI #calcEffectiveMonth::-webkit-date-and-time-value {min-width:0;width:100%;text-align:center;}
+#calculationSettingsUI #calcEffectiveMonth::-webkit-datetime-edit {min-width:0;display:flex;justify-content:center;align-items:center;padding:0;}
+#calculationSettingsUI #calcEffectiveMonth::-webkit-calendar-picker-indicator {flex-shrink:0;margin-left:4px;}
+#calculationSettingsUI #calcSave {max-width:100%;width:100%;}
+
 </style>
 </head><body>
 <header><div class="eyebrow">Shared household tracker</div><h1>Monthly Bills</h1><p>Daily meals, monthly records and bills in one place.</p></header>
