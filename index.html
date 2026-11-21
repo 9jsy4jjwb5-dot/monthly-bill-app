@@ -154,7 +154,8 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 <button class="tab" data-five="5">5 · Petrol & Cash</button>
 </nav>
 <div class="month-selector"><label for="fiveMonth">Selected month</label><input id="fiveMonth" type="month"></div>
-<section id="adminSettingsPanel" class="card hidden"><div class="row between"><h2 class="section-title">Admin Settings</h2><button type="button" id="adminSettingsBack">← Back to tabs</button></div><p class="muted">Manage registered users and permissions. Changes to the existing tab security rules are not active yet; this page saves permission preferences for the next security update.</p><h3>User Management</h3><div id="adminUsersList" class="muted">Loading users…</div><div id="adminSettingsMsg" class="muted" role="status" style="margin-top:12px"></div><hr style="border:0;border-top:1px solid #e1e8f0;margin:20px 0"><h3>Calculation Settings</h3><p class="muted">Coming next: adjustable sharing formula, effective from a selected month. The existing calculation is unchanged.</p></section>
+<section id="adminSettingsPanel" class="card hidden"><div class="row between"><h2 class="section-title">Admin Settings</h2><button type="button" id="adminSettingsBack">← Back to tabs</button></div><p class="muted">Manage registered users and permissions. Changes to the existing tab security rules are not active yet; this page saves permission preferences for the next security update.</p><h3>User Management</h3><div id="adminUsersList" class="muted">Loading users…</div><div id="adminSettingsMsg" class="muted" role="status" style="margin-top:12px"></div><hr style="border:0;border-top:1px solid #e1e8f0;margin:20px 0"><h3>Calculation Settings</h3><p class="muted">Changes take effect from the selected month onward. Earlier months retain their previous settings.</p>
+<div id="calculationSettingsUI"><p class="muted">Loading calculation settings…</p></div></section>
 <div id="fivePages">
 <section id="five-1" class="tab-page"><div class="card meal-summary-card"><div class="grid" id="mealStats2"></div></div><div class="card meal-form-card"><h2 class="section-title">Daily meals</h2><p class="muted">All shared users can add daily meal records.</p><form id="mealform2"><div class="grid"><div><label>Person</label><select id="person2"><option>Vincent</option><option>Eileen</option><option>Eileen Ezlink</option></select></div><div><label>Date</label><input id="date2" type="date" required></div><div><label>Amount (SGD)</label><input id="amount2" type="number" min="0.01" step="0.01" required placeholder="0.00"></div><div><label>Note (optional)</label><input id="note2" maxlength="120" placeholder="Lunch / dinner"></div></div><button class="primary" type="submit" style="width:100%;margin-top:14px">Add meal</button><button type="button" id="cancelMealEdit2" class="hidden" style="margin-top:8px">Cancel edit</button><p id="mealmsg2" class="muted"></p></form></div><div class="card meal-records-card"><div class="row between"><h2 class="section-title">Meal records</h2><span class="pill" id="mealcount2">0 entries</span></div><div id="fiveMeals"></div></div></section>
 <section id="five-2" class="tab-page hidden"><div class="card"><h2 class="section-title">Monthly expenses</h2><p class="muted">Administrator input · Standard users can view.</p><div id="fiveExpenses"></div><div id="edit2"></div></div></section>
@@ -170,7 +171,7 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 </div></div><div class="foot">Monthly Bill · Shared records · SGD</div></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
-const $=id=>document.getElementById(id);let sb=null,user=null,isAdmin=false,meals=[],sheets=[],activeSheet=null;let billPayments=[],billLoadError=null,billEditing=null;let petrolCashRecords=[],petrolCashError=null,petrolCashEditing=null;let newExpenses=[],newExpenseError=null,editingExpenseId=null;
+const $=id=>document.getElementById(id);let sb=null,user=null,isAdmin=false,meals=[],sheets=[],activeSheet=null;let billPayments=[],billLoadError=null,billEditing=null;let petrolCashRecords=[],petrolCashError=null,petrolCashEditing=null;let newExpenses=[],newExpenseError=null,editingExpenseId=null;let calculationSettings=[],calculationSettingsError=null;
 const today=new Date();const localDate=d=>{const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)};const monthNow=localDate(today).slice(0,7);$('mealdate').value=localDate(today);$('monthfilter').value=monthNow;$('mealmonth').value=monthNow;
 function normalizeProjectUrl(value){return String(value||'').trim().replace(/\/rest\/v1\/?$/i,'').replace(/\/+$/,'')}
 function config(){try{const c=JSON.parse(localStorage.getItem('mb_supabase')||'{}');if(c.url){const normalized=normalizeProjectUrl(c.url);if(normalized!==c.url){c.url=normalized;localStorage.setItem('mb_supabase',JSON.stringify(c))}}return c}catch{return {}}}
@@ -241,9 +242,9 @@ function renderFiveTabs(){
    ['Vincent meals',money(vin)],
    ['Monthly expenses',money(billTotal)],
    ['Vincent meals + expenses',money(vin+billTotal)],
-   ['Divide by 2',money((vin+billTotal)/2)],
+   ['Eileen share ('+Math.round(eilShare*10000)/100+'%)',money((vin+billTotal)*eilShare)],
    ['Add Eileen Ezlink',money(ez)],
-   ['Deduct half Eileen meals',`− ${money(eil/2)}`],
+   ['Deduct Vincent share of Eileen meals ('+Math.round(vinShare*10000)/100+'%)',`− ${money(eil*vinShare)}`],
    ['<strong>Eileen to Transfer Vincent</strong>',`<strong>${money(transfer)}</strong>`]
  ];
  const noExpensesNotice=newExpenseError
@@ -254,7 +255,7 @@ function renderFiveTabs(){
  $('fiveCalc').innerHTML=noExpensesNotice+
    `<div class="stat" style="margin-bottom:12px;text-align:center"><div class="muted">Eileen to Transfer Vincent</div><div class="num">${money(transfer)}</div></div>`+
    tableHtml(['Calculation','Amount (SGD)'],calcRows)+
-   '<p class="muted" style="margin-top:12px">Formula: ((Vincent meals + monthly expenses) ÷ 2) + Eileen Ezlink − (Eileen meals ÷ 2). All values use the selected month.</p>';
+   `<p class="muted" style="margin-top:12px">Formula: (Vincent meals + included monthly expenses) × ${Math.round(eilShare*10000)/100}% + Eileen Ezlink − Eileen meals × ${Math.round(vinShare*10000)/100}%. Settings effective from ${esc(cfg.effective_month||'default')}. All values use the selected month.</p>`;
  // Legacy workbook display is overwritten by the independent Tab 4 renderer below.
  const actualSheet=sh?.sheet_name||'archive';
  const normalizedSheet=actualSheet.toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -339,7 +340,7 @@ function renderFiveTabs(){
  $('mealform2').onsubmit=async e=>{e.preventDefault();$('mealmsg2').textContent='Saving…';const old=editingMealId?meals.find(x=>x.id===editingMealId):null;if(editingMealId&&(!old||!canEditMeal(old))){$('mealmsg2').textContent='You cannot edit this record.';return}const rec={person:isAdmin?$('person2').value:'Eileen',meal_date:$('date2').value,amount:Number($('amount2').value),note:$('note2').value.trim()||null};let result;if(old){result=await sb.from('daily_meals').update(rec).eq('id',old.id).select('id')}else{result=await sb.from('daily_meals').insert({...rec,created_by:user.id}).select('id')}if(result.error||!result.data?.length){$('mealmsg2').textContent='Could not save: '+(result.error?.message||'No record changed; check permissions.');return}resetMealForm2();$('mealmsg2').textContent='Saved and shared.';await refreshAll()};
 window.openLegacyAdmin=()=>{if(!isAdmin)return;document.querySelectorAll('.tab-page').forEach(x=>x.classList.add('hidden'));$('fiveTabs').classList.add('legacy-ui');$('fivePages').classList.add('legacy-ui');$('page-admin').parentElement.classList.remove('legacy-ui');$('page-admin').classList.remove('hidden');if(!$('backFiveTabs')){const b=document.createElement('button');b.id='backFiveTabs';b.className='primary';b.textContent='← Back to five tabs';b.style.marginBottom='12px';b.onclick=()=>{ $('page-admin').classList.add('hidden');$('page-admin').parentElement.classList.add('legacy-ui');$('fiveTabs').classList.remove('legacy-ui');$('fivePages').classList.remove('legacy-ui');document.querySelectorAll('.tab-page').forEach(page=>page.classList.toggle('hidden',page.id!=='five-'+fiveActive));document.querySelectorAll('[data-five]').forEach(tab=>tab.classList.toggle('active',Number(tab.dataset.five)===fiveActive));renderFiveTabs()};$('page-admin').prepend(b)}renderSheetEditor()};
 const oldRefreshAll=refreshAll;
-refreshAll=async()=>{await oldRefreshAll();await loadNewExpenses();renderFiveTabs()};
+refreshAll=async()=>{await oldRefreshAll();await loadNewExpenses();await loadCalculationSettings();renderFiveTabs()};
 
 
 // New Tab 2: separate monthly expenses. The workbook is an archive only.
@@ -515,6 +516,58 @@ async function deletePetrolCash(id){
 }
 
 
+
+// Calculation settings are versioned by effective month. No historic record is rewritten.
+async function loadCalculationSettings(){
+ const {data,error}=await sb.from('monthly_calculation_settings').select('*').order('effective_month',{ascending:true});
+ calculationSettingsError=error;calculationSettings=error?[]:(data||[]);
+}
+function effectiveCalculationSettings(month){
+ const valid=calculationSettings.filter(x=>x.effective_month<=month);
+ return valid.length?valid[valid.length-1]:{vincent_share_percent:50,excluded_expense_categories:[],effective_month:null};
+}
+function renderCalculationSettingsEditor(){
+ const host=$('calculationSettingsUI');if(!host)return;
+ if(calculationSettingsError){host.textContent='Could not load calculation settings: '+calculationSettingsError.message;return;}
+ const month=monthStart(),exact=calculationSettings.find(x=>x.effective_month===month);
+ const cfg=exact||effectiveCalculationSettings(month);
+ const categories=[...new Set(newExpenses.map(x=>String(x.category||'').trim()).filter(Boolean))].sort();
+ host.innerHTML=`<div style="display:grid;gap:12px">
+ <label>Effective from month<input type="month" id="calcEffectiveMonth" value="${esc(month)}"></label>
+ <label>Vincent's share of shared costs (%)<input type="number" id="calcVinShare" min="0" max="100" step="0.01" value="${Number(cfg.vincent_share_percent)}"></label>
+ <p class="muted" style="margin:0">Eileen pays the remaining share. At 50%, the existing formula is unchanged.</p>
+ <div><strong>Monthly expense categories</strong><p class="muted" style="margin:4px 0 8px">Checked categories are included in the sharing calculation. Unchecked categories are excluded. Categories added later are included by default.</p>
+ ${categories.length?categories.map(cat=>`<label style="display:flex;align-items:center;gap:8px;margin:7px 0"><input type="checkbox" data-calc-category="${esc(cat)}" style="width:auto" ${cfg.excluded_expense_categories.includes(cat)?'':'checked'}>${esc(cat)}</label>`).join(''):'<p class="muted">No expense categories recorded yet. All future categories will be included by default.</p>'}</div>
+ <div id="calcPreview" class="stat" style="text-align:center"></div>
+ <button type="button" id="calcSave" class="primary">Save calculation settings</button>
+ <div id="calcSettingsMsg" class="muted" role="status"></div></div>`;
+ const monthInput=$('calcEffectiveMonth'),shareInput=$('calcVinShare');
+ function preview(){
+  const selected=monthInput.value||month,share=Number(shareInput.value);
+  const items=newExpenses.filter(x=>x.expense_month===selected);
+  const excluded=[...host.querySelectorAll('[data-calc-category]')].filter(x=>!x.checked).map(x=>x.dataset.calcCategory);
+  const bill=items.filter(x=>!excluded.includes(x.category)).reduce((a,x)=>a+Number(x.amount),0);
+  const ms=meals.filter(x=>x.meal_date.startsWith(selected));
+  const sum=person=>ms.filter(x=>x.person===person).reduce((a,x)=>a+Number(x.amount),0);
+  const amount=(sum('Vincent')+bill)*(1-share/100)+sum('Eileen Ezlink')-sum('Eileen')*share/100;
+  $('calcPreview').innerHTML=Number.isFinite(share)&&share>=0&&share<=100?`<div class="muted">Preview · ${esc(selected)} · Eileen to Transfer Vincent</div><div class="num">${money(amount)}</div>`:'<div class="muted">Enter a share between 0 and 100.</div>';
+ }
+ monthInput.onchange=()=>{const selected=monthInput.value;const existing=calculationSettings.find(x=>x.effective_month===selected)||effectiveCalculationSettings(selected);shareInput.value=existing.vincent_share_percent;host.querySelectorAll('[data-calc-category]').forEach(x=>x.checked=!existing.excluded_expense_categories.includes(x.dataset.calcCategory));preview()};
+ shareInput.oninput=preview;
+ host.querySelectorAll('[data-calc-category]').forEach(x=>x.onchange=preview);
+ preview();
+ $('calcSave').onclick=async()=>{
+  const selected=monthInput.value,share=Number(shareInput.value),msg=$('calcSettingsMsg');
+  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(selected)||!Number.isFinite(share)||share<0||share>100){msg.textContent='Choose a valid month and percentage from 0 to 100.';return}
+  const excluded=[...host.querySelectorAll('[data-calc-category]')].filter(x=>!x.checked).map(x=>x.dataset.calcCategory);
+  $('calcSave').disabled=true;msg.textContent='Saving…';
+  const {error}=await sb.from('monthly_calculation_settings').upsert({effective_month:selected,vincent_share_percent:share,excluded_expense_categories:excluded,updated_by:user.id,updated_at:new Date().toISOString()},{onConflict:'effective_month'});
+  if(error){msg.textContent='Could not save: '+error.message;$('calcSave').disabled=false;return}
+  await loadCalculationSettings();renderFiveTabs();renderCalculationSettingsEditor();
+  $('calcSettingsMsg').textContent='Saved. Settings apply from '+selected+' onward; earlier months are unchanged.';
+ };
+}
+
 // Administrator-only management panel. Database RPCs enforce admin access.
 const adminTabNames={meals:'1 · Meals',expenses:'2 · Expenses',calculation:'3 · Calculation',cards_bills:'4 · Cards & Bills',petrol_cash:'5 · Petrol & Cash'};
 const adminPermissionFields=['can_view','can_add','can_edit','can_delete'];
@@ -526,7 +579,7 @@ function setAdminPanel(open){
  $('fiveTabs').classList.toggle('hidden',!!open);
  document.querySelector('.month-selector').classList.toggle('hidden',!!open);
  $('fivePages').classList.toggle('hidden',!!open);
- if(open)loadAdminUsers();
+ if(open){loadAdminUsers();renderCalculationSettingsEditor();}
 }
 $('adminSettingsButton').onclick=()=>setAdminPanel(!adminPanelOpen);
 $('adminSettingsBack').onclick=()=>setAdminPanel(false);
