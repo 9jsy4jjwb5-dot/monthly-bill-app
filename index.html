@@ -153,6 +153,11 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 #calculationSettingsUI #calcEffectiveMonth::-webkit-calendar-picker-indicator {flex-shrink:0;margin-left:4px;}
 #calculationSettingsUI #calcSave {max-width:100%;width:100%;}
 
+
+/* iOS Safari: use two native selects instead of an overflowing native month field. */
+#calculationSettingsUI .calc-month-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,110px);gap:10px;width:100%;max-width:100%;min-width:0;margin-top:6px}
+#calculationSettingsUI .calc-month-controls select{box-sizing:border-box;display:block;width:100%;max-width:100%;min-width:0;height:46px;min-height:46px;padding:8px 24px 8px 10px;font-size:16px;border:1px solid #d5dfea;border-radius:11px;background-color:#fff;color:#182b40}
+#calculationSettingsUI #calcEffectiveMonth{display:none}
 </style>
 </head><body>
 <header><div class="eyebrow">Shared household tracker</div><h1>Monthly Bills</h1><p>Daily meals, monthly records and bills in one place.</p></header>
@@ -552,7 +557,11 @@ function renderCalculationSettingsEditor(){
  const cfg=exact||effectiveCalculationSettings(month);
  const categories=[...new Set(newExpenses.map(x=>String(x.category||'').trim()).filter(Boolean))].sort();
  host.innerHTML=`<div style="display:grid;gap:12px">
- <label>Effective from month<input type="month" id="calcEffectiveMonth" value="${esc(month)}"></label>
+ <label>Effective from month
+ <div class="calc-month-controls">
+ <select id="calcMonthPart" aria-label="Effective month">${['January','February','March','April','May','June','July','August','September','October','November','December'].map((name,i)=>`<option value="${String(i+1).padStart(2,'0')}" ${month.slice(5)==String(i+1).padStart(2,'0')?'selected':''}>${name}</option>`).join('')}</select>
+ <select id="calcYearPart" aria-label="Effective year">${Array.from({length:31},(_,i)=>2020+i).map(y=>`<option value="${y}" ${month.slice(0,4)==String(y)?'selected':''}>${y}</option>`).join('')}</select>
+ </div><input type="hidden" id="calcEffectiveMonth" value="${esc(month)}"></label>
  <label>Vincent's share of shared costs (%)<input type="number" id="calcVinShare" min="0" max="100" step="0.01" value="${Number(cfg.vincent_share_percent)}"></label>
  <p class="muted" style="margin:0">Eileen pays the remaining share. At 50%, the existing formula is unchanged.</p>
  <div><strong>Monthly expense categories</strong><p class="muted" style="margin:4px 0 8px">Checked categories are included in the sharing calculation. Unchecked categories are excluded. Categories added later are included by default.</p>
@@ -561,6 +570,8 @@ function renderCalculationSettingsEditor(){
  <button type="button" id="calcSave" class="primary">Save calculation settings</button>
  <div id="calcSettingsMsg" class="muted" role="status"></div></div>`;
  const monthInput=$('calcEffectiveMonth'),shareInput=$('calcVinShare');
+ const syncCalcMonth=()=>{monthInput.value=$('calcYearPart').value+'-'+$('calcMonthPart').value;monthInput.onchange();};
+ $('calcMonthPart').onchange=syncCalcMonth;$('calcYearPart').onchange=syncCalcMonth;
  function preview(){
   const selected=monthInput.value||month,share=Number(shareInput.value);
   const items=newExpenses.filter(x=>x.expense_month===selected);
