@@ -236,8 +236,11 @@ function renderFiveTabs(){
  const eil=mealList.filter(x=>x.person==='Eileen').reduce((a,x)=>a+Number(x.amount),0);
  const ez=mealList.filter(x=>x.person==='Eileen Ezlink').reduce((a,x)=>a+Number(x.amount),0);
  const selectedExpenses=newExpenses.filter(x=>x.expense_month===requestedMonth);
- const billTotal=selectedExpenses.reduce((total,x)=>total+Number(x.amount),0);
- const transfer=(vin+billTotal)/2+ez-eil/2;
+ const cfg=effectiveCalculationSettings(requestedMonth);
+ const billTotal=selectedExpenses.filter(x=>!cfg.excluded_expense_categories.includes(x.category)).reduce((total,x)=>total+Number(x.amount),0);
+ const vinShare=Number(cfg.vincent_share_percent)/100;
+ const eilShare=1-vinShare;
+ const transfer=(vin+billTotal)*eilShare+ez-eil*vinShare;
  const calcRows=[
    ['Vincent meals',money(vin)],
    ['Monthly expenses',money(billTotal)],
@@ -563,8 +566,10 @@ function renderCalculationSettingsEditor(){
   $('calcSave').disabled=true;msg.textContent='Saving…';
   const {error}=await sb.from('monthly_calculation_settings').upsert({effective_month:selected,vincent_share_percent:share,excluded_expense_categories:excluded,updated_by:user.id,updated_at:new Date().toISOString()},{onConflict:'effective_month'});
   if(error){msg.textContent='Could not save: '+error.message;$('calcSave').disabled=false;return}
-  await loadCalculationSettings();renderFiveTabs();renderCalculationSettingsEditor();
-  $('calcSettingsMsg').textContent='Saved. Settings apply from '+selected+' onward; earlier months are unchanged.';
+  await loadCalculationSettings();
+  try{renderFiveTabs()}catch(e){console.error('Calculation display error',e)}
+  msg.textContent='Saved. Settings apply from '+selected+' onward; earlier months are unchanged.';
+  $('calcSave').disabled=false;
  };
 }
 
