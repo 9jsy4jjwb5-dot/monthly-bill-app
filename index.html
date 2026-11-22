@@ -175,7 +175,7 @@ body{min-height:100vh;min-height:100dvh;overflow-x:hidden;overflow-y:auto;-webki
 <button class="tab" data-five="5">5 · Petrol & Cash</button>
 </nav>
 <div class="month-selector"><label for="fiveMonth">Selected month</label><input id="fiveMonth" type="month"></div>
-<section id="adminSettingsPanel" class="card hidden"><div class="row between"><h2 class="section-title">Admin Settings</h2><button type="button" id="adminSettingsBack">← Back to tabs</button></div><p class="muted">Manage registered users and permissions. Changes to the existing tab security rules are not active yet; this page saves permission preferences for the next security update.</p><h3>User Management</h3><div id="adminUsersList" class="muted">Loading users…</div><div id="adminSettingsMsg" class="muted" role="status" style="margin-top:12px"></div><hr style="border:0;border-top:1px solid #e1e8f0;margin:20px 0"><h3>Calculation Settings</h3><p class="muted">Changes take effect from the selected month onward. Earlier months retain their previous settings.</p>
+<section id="adminSettingsPanel" class="card hidden"><div class="row between"><h2 class="section-title">Admin Settings</h2><button type="button" id="adminSettingsBack">← Back to tabs</button></div><p class="muted">Manage registered users and tab permissions. Changes take effect when users refresh or sign in again.</p><h3>User Management</h3><div id="adminUsersList" class="muted">Loading users…</div><div id="adminSettingsMsg" class="muted" role="status" style="margin-top:12px"></div><hr style="border:0;border-top:1px solid #e1e8f0;margin:20px 0"><h3>Calculation Settings</h3><p class="muted">Changes take effect from the selected month onward. Earlier months retain their previous settings.</p>
 <div id="calculationSettingsUI"><p class="muted">Loading calculation settings…</p></div></section>
 <div id="fivePages">
 <section id="five-1" class="tab-page"><div class="card meal-summary-card"><div class="grid" id="mealStats2"></div></div><div class="card meal-form-card"><h2 class="section-title">Daily meals</h2><p class="muted">All shared users can add daily meal records.</p><form id="mealform2"><div class="grid"><div><label>Person</label><select id="person2"><option>Vincent</option><option>Eileen</option><option>Eileen Ezlink</option></select></div><div><label>Date</label><input id="date2" type="date" required></div><div><label>Amount (SGD)</label><input id="amount2" type="number" min="0.01" step="0.01" required placeholder="0.00"></div><div><label>Note (optional)</label><input id="note2" maxlength="120" placeholder="Lunch / dinner"></div></div><button class="primary" type="submit" style="width:100%;margin-top:14px">Add meal</button><button type="button" id="cancelMealEdit2" class="hidden" style="margin-top:8px">Cancel edit</button><p id="mealmsg2" class="muted"></p></form></div><div class="card meal-records-card"><div class="row between"><h2 class="section-title">Meal records</h2><span class="pill" id="mealcount2">0 entries</span></div><div id="fiveMeals"></div></div></section>
@@ -207,7 +207,7 @@ $('forgot').onclick=async()=>{const email=$('email').value.trim();if(!email){$('
 $('savepassword').onclick=async()=>{const p=$('newpassword').value,confirm=$('confirmpassword').value;if(p.length<6){$('resetmsg').textContent='Please use at least 6 characters.';return}if(p!==confirm){$('resetmsg').textContent='The passwords do not match.';return}$('resetmsg').textContent='Saving new password…';const {error}=await sb.auth.updateUser({password:p});if(error){$('resetmsg').textContent='Could not update password: '+error.message;return}$('resetmsg').textContent='Password updated successfully. Opening your Monthly Bill app…';user=(await sb.auth.getUser()).data.user;if(user){await showApp()}else{$('reset').classList.add('hidden');$('auth').classList.remove('hidden');$('authmsg').textContent='Password updated. Please sign in with your new password.'}};
 
 $('signout').onclick=async()=>{await sb.auth.signOut();location.reload()};
-async function showApp(){ $('setup').classList.add('hidden');$('auth').classList.add('hidden');$('app').classList.remove('hidden');$('signedin').textContent=user.email||'Signed in';const {data:adm}=await sb.rpc('is_admin');isAdmin=!!adm;$('rolepill').textContent=isAdmin?'Administrator':'Daily meal entry';$('admintab').classList.toggle('hidden',!isAdmin);$('adminSettingsButton').classList.toggle('hidden',!isAdmin);await refreshAll() }
+async function showApp(){ $('setup').classList.add('hidden');$('auth').classList.add('hidden');$('app').classList.remove('hidden');$('signedin').textContent=user.email||'Signed in';const {data:adm}=await sb.rpc('is_admin');isAdmin=!!adm;$('rolepill').textContent=isAdmin?'Administrator':'Daily meal entry';$('admintab').classList.toggle('hidden',!isAdmin);$('adminSettingsButton').classList.toggle('hidden',!isAdmin);await loadMyPermissions();await refreshAll();applyTabAccess() }
 function money(n){return '$'+Number(n||0).toLocaleString('en-SG',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function refreshAll(){await loadMeals();await loadSheets();await loadBillPayments();await loadPetrolCashRecords();renderMeals();renderSummary();renderBills();if(isAdmin)renderSheetEditor()}
@@ -227,12 +227,37 @@ function renderSheetEditor(){const nav=$('sheetbuttons');if(!sheets.length){nav.
 $('importworkbook').onclick=async()=>{if(!isAdmin)return;const file=$('workbookfile').files[0];if(!file){$('importmsg').textContent='Choose the Excel workbook first.';return}if(!window.XLSX){$('importmsg').textContent='Excel reader did not load. Check your internet connection.';return}$('importmsg').textContent='Reading workbook…';try{const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});for(let i=0;i<wb.SheetNames.length;i++){const name=wb.SheetNames[i],ws=wb.Sheets[name],rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:null});const clean=rows.map(r=>r.map(v=>v===undefined?'':v));const {error}=await sb.from('monthly_sheets').upsert({sheet_name:name,sheet_order:i,rows:clean,updated_by:user.id,updated_at:new Date().toISOString()},{onConflict:'sheet_name'});if(error)throw error}await loadSheets();activeSheet=sheets[0]?.sheet_name||null;renderBills();renderSheetEditor();$('importmsg').textContent=`Imported ${wb.SheetNames.length} worksheets successfully. You can now edit cells below and save.`}catch(err){$('importmsg').textContent='Import failed: '+err.message}};
 $('savesheet').onclick=async()=>{if(!isAdmin||!activeSheet)return;const sheet=sheets.find(s=>s.sheet_name===activeSheet);if(!sheet)return;const table=$('adminsheet').querySelector('table');if(!table)return;const rows=Array.from(table.rows).map(tr=>Array.from(tr.cells).map(td=>td.innerText));$('savemsg').textContent='Saving…';const {error}=await sb.from('monthly_sheets').update({rows,updated_by:user.id,updated_at:new Date().toISOString()}).eq('sheet_name',activeSheet);if(error){$('savemsg').textContent='Could not save: '+error.message;return}await loadSheets();renderBills();renderSheetEditor();$('savemsg').textContent='Saved. Other users can now see the update.'};
 
+// Effective tab permissions: server RLS remains the final authority.
+const tabKeysByNumber={1:'meals',2:'expenses',3:'calculation',4:'cards_bills',5:'petrol_cash'};
+let myTabPermissions={};
+function allowed(tab,action='view'){
+ if(isAdmin)return true;
+ const key=typeof tab==='number'?tabKeysByNumber[tab]:tab;
+ return myTabPermissions[key]?.['can_'+action]===true;
+}
+async function loadMyPermissions(){
+ myTabPermissions={};
+ if(isAdmin)return;
+ const {data,error}=await sb.from('app_user_permissions').select('tab_key,can_view,can_add,can_edit,can_delete').eq('user_id',user.id);
+ if(error){console.warn('Unable to load permissions',error.message);return;}
+ for(const r of data||[])myTabPermissions[r.tab_key]=r;
+}
+function applyTabAccess(){
+ const buttons=Array.from(document.querySelectorAll('[data-five]'));
+ for(const b of buttons){const n=Number(b.dataset.five);b.classList.toggle('hidden',!allowed(n));}
+ if(!allowed(fiveActive))fiveActive=Number(buttons.find(b=>allowed(Number(b.dataset.five)))?.dataset.five||0);
+ for(const b of buttons)b.classList.toggle('active',Number(b.dataset.five)===fiveActive);
+ document.querySelectorAll('.tab-page').forEach(p=>p.classList.toggle('hidden',p.id!=='five-'+fiveActive||!fiveActive));
+ if(!fiveActive){$('fivePages').insertAdjacentHTML('afterbegin','<p id="noTabAccess" class="notice">No tabs are available for your account. Contact your administrator.</p>');}
+ else $('noTabAccess')?.remove();
+}
 // Five-tab interface: existing Supabase tables and permissions are retained.
 let fiveActive=1;
 const monthStart=()=>($('fiveMonth')?.value||monthNow);
 $('fiveMonth').value=monthNow;
 $('date2').value=localDate(new Date());
 document.querySelectorAll('[data-five]').forEach(b=>b.addEventListener('click',()=>{
+ if(!allowed(Number(b.dataset.five)))return;
  fiveActive=Number(b.dataset.five);
  document.querySelectorAll('[data-five]').forEach(x=>x.classList.toggle('active',x===b));
  document.querySelectorAll('.tab-page').forEach(x=>x.classList.toggle('hidden',x.id!=='five-'+fiveActive));
@@ -244,6 +269,7 @@ function fmt(v){if(v==null||v==='')return '—';const n=Number(String(v).replace
 function tableHtml(headers,rows){return `<div class="new-table-wrap"><table class="new-table"><thead><tr>${headers.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 function monthSheet(){const m=monthStart();let match=sheets.find(x=>{const n=x.sheet_name.toLowerCase().replace(/\s/g,'');return n===m.slice(0,3).toLowerCase()+m.slice(2,4)||n===new Date(m+'-01').toLocaleString('en',{month:'short'}).toLowerCase()+m.slice(2,4)});return match||sheets[sheets.length-1]}
 function renderFiveTabs(){
+ applyTabAccess();
  const requestedMonth=monthStart();
  const sh=monthSheet();if(sh)activeSheet=sh.sheet_name;const rows=sh?.rows||[];
  // Tab 1 uses the shared daily_meals table, not a duplicate workbook copy.
@@ -347,21 +373,22 @@ function renderFiveTabs(){
  renderPetrolCash();
 }
  let editingMealId=null;
- function canEditMeal(x){return isAdmin||(x.created_by===user?.id&&x.person==='Eileen')}
+ function canEditMeal(x){return allowed('meals','edit')&&(isAdmin||(x.created_by===user?.id&&x.person==='Eileen'))}
  function renderFiveMeals(){
   const list=meals.filter(x=>x.meal_date.startsWith(monthStart())).sort((a,b)=>b.meal_date.localeCompare(a.meal_date));
   const total=person=>list.filter(x=>x.person===person).reduce((a,x)=>a+Number(x.amount),0);
   $('mealStats2').innerHTML=['Vincent','Eileen','Eileen Ezlink'].map(p=>`<div class="stat"><div class="muted">${esc(p)}</div><div class="num">${money(total(p))}</div></div>`).join('');
   $('mealcount2').textContent=list.length+' entries';
   $('person2').disabled=!isAdmin;
+  $('mealform2').classList.toggle('hidden',!allowed('meals',editingMealId?'edit':'add'));
   if(!isAdmin)$('person2').value='Eileen';
-  $('fiveMeals').innerHTML=list.length?list.map(x=>`<div class="entry"><div class="row between"><div><strong>${esc(x.person)}</strong><div class="muted">${esc(x.meal_date)} · ${esc(x.note||'Daily meal')}</div></div><div><strong>${money(x.amount)}</strong>${canEditMeal(x)?`<div class="row" style="margin-top:7px"><button type="button" data-meal-edit="${esc(x.id)}">Edit</button><button type="button" class="danger" data-meal-delete="${esc(x.id)}">Delete</button></div>`:''}</div></div></div>`).join(''):'<p class="muted">No meal entries for this month yet.</p>';
-  $('fiveMeals').querySelectorAll('[data-meal-edit]').forEach(b=>b.onclick=()=>{const x=meals.find(m=>String(m.id)===b.dataset.mealEdit);if(!x||!canEditMeal(x))return;editingMealId=x.id;$('person2').value=x.person;$('date2').value=x.meal_date;$('amount2').value=x.amount;$('note2').value=x.note||'';$('mealform2').querySelector('[type=submit]').textContent='Save changes';$('cancelMealEdit2').classList.remove('hidden');$('mealmsg2').textContent='Editing selected record';$('mealform2').scrollIntoView({behavior:'smooth',block:'start'})});
-  $('fiveMeals').querySelectorAll('[data-meal-delete]').forEach(b=>b.onclick=async()=>{const x=meals.find(m=>String(m.id)===b.dataset.mealDelete);if(!x||!canEditMeal(x)||!confirm('Delete this meal record?'))return;const {data,error}=await sb.from('daily_meals').delete().eq('id',x.id).select('id');if(error||!data?.length){alert(error?.message||'Record was not deleted. Please check permissions.');return}if(editingMealId===x.id)resetMealForm2();await refreshAll()});
+  $('fiveMeals').innerHTML=list.length?list.map(x=>`<div class="entry"><div class="row between"><div><strong>${esc(x.person)}</strong><div class="muted">${esc(x.meal_date)} · ${esc(x.note||'Daily meal')}</div></div><div><strong>${money(x.amount)}</strong>${(canEditMeal(x)|| (allowed('meals','delete')&&(isAdmin||(x.created_by===user?.id&&x.person==='Eileen'))))?`<div class="row" style="margin-top:7px">${canEditMeal(x)?`<button type="button" data-meal-edit="${esc(x.id)}">Edit</button>`:''}${allowed('meals','delete')&&(isAdmin||(x.created_by===user?.id&&x.person==='Eileen'))?`<button type="button" class="danger" data-meal-delete="${esc(x.id)}">Delete</button>`:''}</div>`:''}</div></div></div>`).join(''):'<p class="muted">No meal entries for this month yet.</p>';
+  $('fiveMeals').querySelectorAll('[data-meal-edit]').forEach(b=>b.onclick=()=>{const x=meals.find(m=>String(m.id)===b.dataset.mealEdit);if(!x||!canEditMeal(x))return;editingMealId=x.id;$('mealform2').classList.remove('hidden');$('person2').value=x.person;$('date2').value=x.meal_date;$('amount2').value=x.amount;$('note2').value=x.note||'';$('mealform2').querySelector('[type=submit]').textContent='Save changes';$('cancelMealEdit2').classList.remove('hidden');$('mealmsg2').textContent='Editing selected record';$('mealform2').scrollIntoView({behavior:'smooth',block:'start'})});
+  $('fiveMeals').querySelectorAll('[data-meal-delete]').forEach(b=>b.onclick=async()=>{const x=meals.find(m=>String(m.id)===b.dataset.mealDelete);if(!x||!allowed('meals','delete')||!(isAdmin||(x.created_by===user?.id&&x.person==='Eileen'))||!confirm('Delete this meal record?'))return;const {data,error}=await sb.from('daily_meals').delete().eq('id',x.id).select('id');if(error||!data?.length){alert(error?.message||'Record was not deleted. Please check permissions.');return}if(editingMealId===x.id)resetMealForm2();await refreshAll()});
  }
- function resetMealForm2(){editingMealId=null;$('amount2').value='';$('note2').value='';$('mealform2').querySelector('[type=submit]').textContent='Add meal';$('cancelMealEdit2').classList.add('hidden');if(!isAdmin)$('person2').value='Eileen'}
+ function resetMealForm2(){editingMealId=null;$('mealform2').classList.toggle('hidden',!allowed('meals','add'));$('amount2').value='';$('note2').value='';$('mealform2').querySelector('[type=submit]').textContent='Add meal';$('cancelMealEdit2').classList.add('hidden');if(!isAdmin)$('person2').value='Eileen'}
  $('cancelMealEdit2').onclick=()=>{resetMealForm2();$('mealmsg2').textContent=''};
- $('mealform2').onsubmit=async e=>{e.preventDefault();$('mealmsg2').textContent='Saving…';const old=editingMealId?meals.find(x=>x.id===editingMealId):null;if(editingMealId&&(!old||!canEditMeal(old))){$('mealmsg2').textContent='You cannot edit this record.';return}const rec={person:isAdmin?$('person2').value:'Eileen',meal_date:$('date2').value,amount:Number($('amount2').value),note:$('note2').value.trim()||null};let result;if(old){result=await sb.from('daily_meals').update(rec).eq('id',old.id).select('id')}else{result=await sb.from('daily_meals').insert({...rec,created_by:user.id}).select('id')}if(result.error||!result.data?.length){$('mealmsg2').textContent='Could not save: '+(result.error?.message||'No record changed; check permissions.');return}resetMealForm2();$('mealmsg2').textContent='Saved and shared.';await refreshAll()};
+ $('mealform2').onsubmit=async e=>{e.preventDefault();$('mealmsg2').textContent='Saving…';const old=editingMealId?meals.find(x=>x.id===editingMealId):null;if(!allowed('meals',editingMealId?'edit':'add')||(editingMealId&&(!old||!canEditMeal(old)))){$('mealmsg2').textContent='You cannot edit this record.';return}const rec={person:isAdmin?$('person2').value:'Eileen',meal_date:$('date2').value,amount:Number($('amount2').value),note:$('note2').value.trim()||null};let result;if(old){result=await sb.from('daily_meals').update(rec).eq('id',old.id).select('id')}else{result=await sb.from('daily_meals').insert({...rec,created_by:user.id}).select('id')}if(result.error||!result.data?.length){$('mealmsg2').textContent='Could not save: '+(result.error?.message||'No record changed; check permissions.');return}resetMealForm2();$('mealmsg2').textContent='Saved and shared.';await refreshAll()};
 window.openLegacyAdmin=()=>{if(!isAdmin)return;document.querySelectorAll('.tab-page').forEach(x=>x.classList.add('hidden'));$('fiveTabs').classList.add('legacy-ui');$('fivePages').classList.add('legacy-ui');$('page-admin').parentElement.classList.remove('legacy-ui');$('page-admin').classList.remove('hidden');if(!$('backFiveTabs')){const b=document.createElement('button');b.id='backFiveTabs';b.className='primary';b.textContent='← Back to five tabs';b.style.marginBottom='12px';b.onclick=()=>{ $('page-admin').classList.add('hidden');$('page-admin').parentElement.classList.add('legacy-ui');$('fiveTabs').classList.remove('legacy-ui');$('fivePages').classList.remove('legacy-ui');document.querySelectorAll('.tab-page').forEach(page=>page.classList.toggle('hidden',page.id!=='five-'+fiveActive));document.querySelectorAll('[data-five]').forEach(tab=>tab.classList.toggle('active',Number(tab.dataset.five)===fiveActive));renderFiveTabs()};$('page-admin').prepend(b)}renderSheetEditor()};
 const oldRefreshAll=refreshAll;
 refreshAll=async()=>{await oldRefreshAll();await loadNewExpenses();await loadCalculationSettings();renderFiveTabs()};
@@ -377,8 +404,8 @@ function renderNewExpenses(){
  if(newExpenseError){root.innerHTML='<p class="notice">New expenses database is not ready: '+esc(newExpenseError.message)+'. Please run the Tab 2 SQL setup.</p>';edit.innerHTML='';return;}
  const month=monthStart(),list=newExpenses.filter(x=>x.expense_month===month),total=list.reduce((n,x)=>n+Number(x.amount),0);
  root.innerHTML=`<div class="grid tab4-summary-grid" style="margin:12px 0"><div class="stat" style="text-align:center"><div class="muted">Monthly expenses total</div><div class="num">${money(total)}</div></div></div>
- <section class="bill-section"><div class="row between" style="align-items:center;gap:8px"><h3 class="bill-section-title" style="margin:0">Expense Records</h3>${isAdmin?'<button type="button" class="primary" id="expenseAdd">+ Add Expense</button>':''}</div>
- <div class="bill-list" style="margin-top:10px">${list.length?list.map(x=>`<div class="bill-item"><div class="bill-item-main"><div class="bill-item-name">${esc(x.category)}</div></div><div class="bill-item-amount">${money(x.amount)}${isAdmin?`<div class="row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="small" data-exp-edit="${esc(x.id)}">Edit</button><button type="button" class="small danger" data-exp-delete="${esc(x.id)}">Delete</button></div>`:''}</div></div>`).join(''):'<div class="bill-empty">$0.00 — No record entered</div>'}
+ <section class="bill-section"><div class="row between" style="align-items:center;gap:8px"><h3 class="bill-section-title" style="margin:0">Expense Records</h3>${allowed('expenses','add')?'<button type="button" class="primary" id="expenseAdd">+ Add Expense</button>':''}</div>
+ <div class="bill-list" style="margin-top:10px">${list.length?list.map(x=>`<div class="bill-item"><div class="bill-item-main"><div class="bill-item-name">${esc(x.category)}</div></div><div class="bill-item-amount">${money(x.amount)}${(allowed('expenses','edit')||allowed('expenses','delete'))?`<div class="row" style="justify-content:flex-end;margin-top:6px">${allowed('expenses','edit')?`<button type="button" class="small" data-exp-edit="${esc(x.id)}">Edit</button>`:''}${allowed('expenses','delete')?`<button type="button" class="small danger" data-exp-delete="${esc(x.id)}">Delete</button>`:''}</div>`:''}</div></div>`).join(''):'<div class="bill-empty">$0.00 — No record entered</div>'}
  <div class="bill-item bill-total"><div class="bill-item-main"><div class="bill-item-name">Monthly total</div></div><div class="bill-item-amount">${money(total)}</div></div></div></section>`;
  root.querySelector('#expenseAdd')?.addEventListener('click',()=>openExpenseEditor(null));
  root.querySelectorAll('[data-exp-edit]').forEach(b=>b.onclick=()=>openExpenseEditor(b.dataset.expEdit));
@@ -387,14 +414,14 @@ function renderNewExpenses(){
  edit.innerHTML=`<div id="expenseEditor"></div><details style="margin-top:16px"><summary style="cursor:pointer;font-weight:650">Old workbook archive (read-only)</summary><p class="muted">Historical worksheet records are kept for reference. They are not included in the new expenses total or Tab 3 calculation.</p>${sh?sheetTable(sh,false):'<p class="muted">No archived worksheet for this month.</p>'}</details>`;
 }
 function openExpenseEditor(id){
- if(!isAdmin)return;editingExpenseId=id;const old=newExpenses.find(x=>x.id===id),root=$('expenseEditor');
+ if(!allowed('expenses',id?'edit':'add'))return;editingExpenseId=id;const old=newExpenses.find(x=>x.id===id),root=$('expenseEditor');
  root.innerHTML=`<form id="newExpenseForm" style="margin-top:14px;padding:14px;border:1px solid #dce5ef;border-radius:12px"><h3 class="section-title">${old?'Edit':'Add'} Expense</h3><p class="muted">Selected month: ${esc(monthStart())}</p><label>Category</label><input id="newExpenseCategory" maxlength="120" required placeholder="e.g. Electricity"><label>Amount (SGD)</label><input id="newExpenseAmount" type="number" min="0.01" step="0.01" required placeholder="0.00"><div class="row" style="margin-top:12px"><button class="primary" type="submit">Save</button><button type="button" id="newExpenseCancel">Cancel</button></div><p id="newExpenseMessage" class="muted"></p></form>`;
  $('newExpenseCategory').value=old?.category||'';$('newExpenseAmount').value=old?.amount??'';
  $('newExpenseCancel').onclick=()=>root.innerHTML='';$('newExpenseForm').onsubmit=saveNewExpense;
  root.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 async function saveNewExpense(e){
- e.preventDefault();if(!isAdmin)return;
+ e.preventDefault();if(!allowed('expenses',editingExpenseId?'edit':'add'))return;
  const msg=$('newExpenseMessage'),category=$('newExpenseCategory').value.trim(),amount=Number($('newExpenseAmount').value);
  if(!category||!Number.isFinite(amount)||amount<=0){msg.textContent='Enter a category and an amount greater than $0.00.';return;}
  msg.textContent='Saving…';const record={category,amount,expense_month:monthStart()};
@@ -403,7 +430,7 @@ async function saveNewExpense(e){
  editingExpenseId=null;await loadNewExpenses();renderFiveTabs();
 }
 async function deleteNewExpense(id){
- if(!isAdmin)return;const record=newExpenses.find(x=>x.id===id);if(!record)return;
+ if(!allowed('expenses','delete'))return;const record=newExpenses.find(x=>x.id===id);if(!record)return;
  if(!confirm('Delete '+record.category+' — '+money(record.amount)+' from '+record.expense_month+'?'))return;
  const {data,error}=await sb.from('monthly_expense_entries').delete().eq('id',id).select('id');
  if(error||!data?.length){alert('Could not delete: '+(error?.message||'Check permissions.'));return;}
@@ -426,7 +453,7 @@ const billDueText=r=>{
  if(date.getMonth()!==month-1)return 'Due day '+r.due_day+' · One-time';
  return 'Due: '+date.toLocaleDateString('en-SG',{day:'numeric',month:'long',year:'numeric'})+' · One-time';
 };
-const billLine=r=>`<div class="bill-item"><div class="bill-item-main"><div class="bill-item-name">${esc(r.payment_name)}</div><div class="bill-item-due">${esc(billDueText(r))}</div></div><div class="bill-item-amount">${money(r.amount)}${isAdmin?`<div class="row" style="margin-top:6px;justify-content:flex-end"><button type="button" class="small" data-bedit="${esc(r.id)}">Edit</button><button type="button" class="small danger" data-bstop="${esc(r.id)}">${r.category==='one_time'?'Delete':'Stop'}</button>${r.category!=='one_time'?`<button type="button" class="small danger" data-bseries="${esc(r.id)}">Delete series</button>`:''}</div>`:''}</div></div>`;
+const billLine=r=>`<div class="bill-item"><div class="bill-item-main"><div class="bill-item-name">${esc(r.payment_name)}</div><div class="bill-item-due">${esc(billDueText(r))}</div></div><div class="bill-item-amount">${money(r.amount)}${(allowed('cards_bills','edit')||allowed('cards_bills','delete'))?`<div class="row" style="margin-top:6px;justify-content:flex-end">${allowed('cards_bills','edit')?`<button type="button" class="small" data-bedit="${esc(r.id)}">Edit</button>`:''}${allowed('cards_bills','delete')?`<button type="button" class="small danger" data-bstop="${esc(r.id)}">${r.category==='one_time'?'Delete':'Stop'}</button>${r.category!=='one_time'?`<button type="button" class="small danger" data-bseries="${esc(r.id)}">Delete series</button>`:''}`:''}</div>`:''}</div></div>`;
 function renderNewBills(){
  const status=$('tab4Status');if(!status)return;
  if(billLoadError){status.textContent='New payment database not ready: '+billLoadError.message+' — Please run the Tab 4 SQL setup first.';$('fiveCards').innerHTML='';$('edit4').innerHTML='';$('tab4Summary').innerHTML='';$('tab4Archive').innerHTML='';return}
@@ -439,20 +466,20 @@ function renderNewBills(){
  $('fiveCards').querySelectorAll('[data-bedit]').forEach(b=>b.onclick=()=>openBillEditor(b.dataset.bedit));
  $('fiveCards').querySelectorAll('[data-bstop]').forEach(b=>b.onclick=()=>stopBillPayment(b.dataset.bstop));
  $('fiveCards').querySelectorAll('[data-bseries]').forEach(b=>b.onclick=()=>deleteBillSeries(b.dataset.bseries));
- $('edit4').innerHTML=isAdmin?`<button type="button" class="primary" id="newBillButton">+ Add payment</button><div id="billEditor"></div>`:'';
- if(isAdmin)$('newBillButton').onclick=()=>openBillEditor(null);
+ $('edit4').innerHTML=allowed('cards_bills','add')?`<button type="button" class="primary" id="newBillButton">+ Add payment</button><div id="billEditor"></div>`:'';
+ if(allowed('cards_bills','add'))$('newBillButton').onclick=()=>openBillEditor(null);
  const sh=sheets.find(x=>{const n=x.sheet_name.toLowerCase().replace(/\s/g,'');return n===new Date(monthStart()+'-01').toLocaleString('en',{month:'short'}).toLowerCase()+monthStart().slice(2,4)});
  $('tab4Archive').innerHTML=`<details><summary style="cursor:pointer;font-weight:650">Old workbook archive (read-only)</summary><p class="muted">Historical worksheet data only. It is not included in the new payment totals.</p>${sh?sheetTable(sh,false):'<p class="muted">No archived worksheet for the selected month.</p>'}</details>`;
 }
 function openBillEditor(id){
- if(!isAdmin)return;const r=billPayments.find(x=>x.id===id);billEditing=id||null;
+ if(!allowed('cards_bills',id?'edit':'add'))return;const r=billPayments.find(x=>x.id===id);billEditing=id||null;
  const form=$('billEditor');form.innerHTML=`<form id="billForm" style="margin-top:12px;padding:14px;border:1px solid #dce5ef;border-radius:12px"><h3 class="section-title">${r?'Edit payment':'Add payment'}</h3><label>Payment name</label><input id="billName" maxlength="120" required><label>Amount (SGD)</label><input id="billAmount" type="number" min="0" step="0.01" required><label>Due day (1–31, optional)</label><input id="billDue" type="number" min="1" max="31"><label>Payment type</label><select id="billCategory"><option value="one_time">One-time payment</option><option value="recurring">Recurring monthly payment</option><option value="standalone">Standalone recurring (separate total)</option></select><p class="muted">${r&&r.category!=='one_time'?'Changes take effect from the selected month onward. Previous months remain unchanged.':'One-time payments apply to the selected month only.'}</p><div class="row" style="margin-top:12px"><button type="submit" class="primary">Save payment</button><button type="button" id="billCancel">Cancel</button></div><p class="muted" id="billMessage"></p></form>`;
  $('billName').value=r?.payment_name||'';$('billAmount').value=r?.amount??'';$('billDue').value=r?.due_day??'';$('billCategory').value=r?.category||'one_time';
  $('billCancel').onclick=()=>form.innerHTML='';$('billForm').onsubmit=saveBillPayment;
  form.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 async function saveBillPayment(e){
- e.preventDefault();if(!isAdmin)return;
+ e.preventDefault();if(!allowed('cards_bills',billEditing?'edit':'add'))return;
  const msg=$('billMessage'),m=billMonthDate(monthStart()),old=billPayments.find(r=>r.id===billEditing);
  const name=$('billName').value.trim(),amount=Number($('billAmount').value),due=$('billDue').value?Number($('billDue').value):null,category=$('billCategory').value;
  if(!name||!Number.isFinite(amount)||amount<0||(due!==null&&(due<1||due>31))){msg.textContent='Please check the payment details.';return}
@@ -468,7 +495,7 @@ async function saveBillPayment(e){
  await loadBillPayments();renderNewBills();
 }
 async function deleteBillSeries(id){
- if(!isAdmin)return;
+ if(!allowed('cards_bills','delete'))return;
  const r=billPayments.find(x=>x.id===id);
  if(!r||r.category==='one_time')return;
  const versions=billPayments.filter(x=>x.series_id===r.series_id);
@@ -484,7 +511,7 @@ async function deleteBillSeries(id){
  alert('Deleted '+data+' saved version(s) of "'+name+'".');
 }
 async function stopBillPayment(id){
- if(!isAdmin)return;const r=billPayments.find(x=>x.id===id);if(!r||!billActive(r,monthStart()))return;
+ if(!allowed('cards_bills','delete'))return;const r=billPayments.find(x=>x.id===id);if(!r||!billActive(r,monthStart()))return;
  const one=r.category==='one_time';if(!confirm(one?'Delete this one-time payment?':'Stop this recurring payment from '+monthStart()+' onward? Earlier months will remain unchanged.'))return;
  let error;
  if(one)({error}=await sb.from('bill_payments').delete().eq('id',id));
@@ -506,7 +533,7 @@ function renderPetrolCash(){
  root.innerHTML=`<div class="grid tab4-summary-grid" style="margin:12px 0"><div class="stat"><div class="muted">Petrol total</div><div class="num">${money(sum('petrol'))}</div></div><div class="stat"><div class="muted">Cash Card total</div><div class="num">${money(sum('cash_card'))}</div></div></div>`+
  [['petrol','1. Petrol Records','+ Add Petrol'],['cash_card','2. Cash Card Records','+ Add Cash Card']].map(([kind,title,addLabel])=>{
  const list=rows.filter(x=>x.record_type===kind).sort((a,b)=>b.record_date.localeCompare(a.record_date));
- return `<section class="bill-section"><div class="row between" style="gap:8px;align-items:center"><h3 class="bill-section-title" style="margin:0">${title}</h3>${isAdmin?`<button type="button" class="primary" data-pcadd="${kind}">${addLabel}</button>`:''}</div><div class="bill-list" style="margin-top:10px">${list.length?list.map(x=>`<div class="bill-item"><div class="bill-item-main"><div class="bill-item-name">${new Date(x.record_date+'T12:00:00').toLocaleDateString('en-SG',{day:'numeric',month:'long',year:'numeric'})}</div></div><div class="bill-item-amount">${money(x.amount)}${isAdmin?`<div class="row" style="justify-content:flex-end;margin-top:6px"><button type="button" class="small" data-pcedit="${esc(x.id)}">Edit</button><button type="button" class="small danger" data-pcdelete="${esc(x.id)}">Delete</button></div>`:''}</div></div>`).join(''):'<div class="bill-empty">$0.00 — No record entered</div>'}<div class="bill-item bill-total"><div class="bill-item-main"><div class="bill-item-name">${kind==='petrol'?'Petrol total':'Cash Card total'}</div></div><div class="bill-item-amount">${money(sum(kind))}</div></div></div></section>`;
+ return `<section class="bill-section"><div class="row between" style="gap:8px;align-items:center"><h3 class="bill-section-title" style="margin:0">${title}</h3>${allowed('petrol_cash','add')?`<button type="button" class="primary" data-pcadd="${kind}">${addLabel}</button>`:''}</div><div class="bill-list" style="margin-top:10px">${list.length?list.map(x=>`<div class="bill-item"><div class="bill-item-main"><div class="bill-item-name">${new Date(x.record_date+'T12:00:00').toLocaleDateString('en-SG',{day:'numeric',month:'long',year:'numeric'})}</div></div><div class="bill-item-amount">${money(x.amount)}${(allowed('petrol_cash','edit')||allowed('petrol_cash','delete'))?`<div class="row" style="justify-content:flex-end;margin-top:6px">${allowed('petrol_cash','edit')?`<button type="button" class="small" data-pcedit="${esc(x.id)}">Edit</button>`:''}${allowed('petrol_cash','delete')?`<button type="button" class="small danger" data-pcdelete="${esc(x.id)}">Delete</button>`:''}</div>`:''}</div></div>`).join(''):'<div class="bill-empty">$0.00 — No record entered</div>'}<div class="bill-item bill-total"><div class="bill-item-main"><div class="bill-item-name">${kind==='petrol'?'Petrol total':'Cash Card total'}</div></div><div class="bill-item-amount">${money(sum(kind))}</div></div></div></section>`;
  }).join('');
  root.querySelectorAll('[data-pcadd]').forEach(b=>b.onclick=()=>openPetrolCashEditor(b.dataset.pcadd,null));
  root.querySelectorAll('[data-pcedit]').forEach(b=>b.onclick=()=>{const r=petrolCashRecords.find(x=>x.id===b.dataset.pcedit);if(r)openPetrolCashEditor(r.record_type,r.id)});
@@ -514,7 +541,7 @@ function renderPetrolCash(){
  $('edit5').innerHTML=`<div id="pcEditor"></div><details style="margin-top:16px"><summary style="cursor:pointer;font-weight:650">Old workbook archive (read-only)</summary><p class="muted">Historical workbook data is kept for reference and is not included in the new Petrol or Cash Card totals.</p>${(()=>{const sh=sheets.find(x=>x.sheet_name.toLowerCase().replace(/\s/g,'')===new Date(month+'-01').toLocaleString('en',{month:'short'}).toLowerCase()+month.slice(2,4));return sh?sheetTable(sh,false):'<p class="muted">No archived worksheet for this month.</p>'})()}</details>`;
 }
 function openPetrolCashEditor(kind,id){
- if(!isAdmin)return;const old=petrolCashRecords.find(x=>x.id===id);petrolCashEditing=id||null;
+ if(!allowed('petrol_cash',id?'edit':'add'))return;const old=petrolCashRecords.find(x=>x.id===id);petrolCashEditing=id||null;
  const root=$('pcEditor');const label=kind==='petrol'?'Petrol':'Cash Card';
  root.innerHTML=`<form id="pcForm" style="margin-top:14px;padding:14px;border:1px solid #dce5ef;border-radius:12px"><h3 class="section-title">${old?'Edit':'Add'} ${label}</h3><label>Date</label><input id="pcDate" type="date" required><label>Amount paid (SGD)</label><input id="pcAmount" type="number" min="0.01" step="0.01" required placeholder="0.00"><div class="row" style="margin-top:12px"><button class="primary" type="submit">Save</button><button id="pcCancel" type="button">Cancel</button></div><p id="pcMessage" class="muted"></p></form>`;
  $('pcDate').value=old?.record_date||(monthStart()===monthNow?localDate(new Date()):monthStart()+'-01');$('pcAmount').value=old?.amount??'';
@@ -522,7 +549,7 @@ function openPetrolCashEditor(kind,id){
  root.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 async function savePetrolCash(e,kind){
- e.preventDefault();if(!isAdmin)return;
+ e.preventDefault();if(!allowed('petrol_cash',petrolCashEditing?'edit':'add'))return;
  const msg=$('pcMessage'),date=$('pcDate').value,amount=Number($('pcAmount').value);
  if(!date||date.slice(0,7)!==monthStart()){msg.textContent='Choose a date within the selected month ('+monthStart()+').';return;}
  if(!Number.isFinite(amount)||amount<=0){msg.textContent='Enter an amount greater than $0.00.';return;}
@@ -532,7 +559,7 @@ async function savePetrolCash(e,kind){
  await loadPetrolCashRecords();renderPetrolCash();
 }
 async function deletePetrolCash(id){
- if(!isAdmin)return;const r=petrolCashRecords.find(x=>x.id===id);if(!r)return;
+ if(!allowed('petrol_cash','delete'))return;const r=petrolCashRecords.find(x=>x.id===id);if(!r)return;
  if(!confirm('Delete '+(r.record_type==='petrol'?'Petrol':'Cash Card')+' entry '+r.record_date+' — '+money(r.amount)+'?'))return;
  const {data,error}=await sb.from('petrol_cash_records').delete().eq('id',id).select('id');
  if(error||!data?.length){alert('Could not delete: '+(error?.message||'Check permissions.'));return;}
@@ -631,7 +658,7 @@ async function loadAdminUsers(){
    const current=permissions.find(p=>p.user_id===u.user_id&&p.tab_key===tab)||{};
    return `<div class="admin-permission-row" data-user="${esc(u.user_id)}" data-tab="${tab}" style="border-top:1px solid #e1e8f0;padding:10px 0"><strong>${adminTabNames[tab]}</strong><div class="row" style="gap:12px;margin:8px 0;flex-wrap:wrap">${adminPermissionFields.map((f,j)=>`<label style="margin:0;font-weight:500;display:flex;gap:5px;align-items:center"><input type="checkbox" data-field="${f}" style="width:auto" ${current[f]?'checked':''}>${['View','Add','Edit','Delete'][j]}</label>`).join('')}</div><button type="button" class="small admin-save-tab">Save permissions</button></div>`;
   }).join('');
-  return `<div class="card" style="padding:13px;margin-top:12px" data-admin-user="${esc(u.user_id)}"><strong>${esc(u.email||'User')}</strong><p class="muted" style="margin:5px 0">${esc(u.user_role)}${own?' · Your account':''}</p><button type="button" class="small admin-role-toggle" ${own?'disabled':''}>${admin?'Remove administrator rights':'Make administrator'}</button><details style="margin-top:12px"><summary style="cursor:pointer;font-weight:650">Tab permissions</summary><p class="muted">These preferences are saved, but existing database policies still determine access until the security update.</p>${settings}</details></div>`;
+  return `<div class="card" style="padding:13px;margin-top:12px" data-admin-user="${esc(u.user_id)}"><strong>${esc(u.email||'User')}</strong><p class="muted" style="margin:5px 0">${esc(u.user_role)}${own?' · Your account':''}</p><button type="button" class="small admin-role-toggle" ${own?'disabled':''}>${admin?'Remove administrator rights':'Make administrator'}</button><details style="margin-top:12px"><summary style="cursor:pointer;font-weight:650">Tab permissions</summary><p class="muted">Access is enforced by the existing database policies and reflected in the app after refresh. Administrator accounts retain full access.</p>${settings}</details></div>`;
  }).join('');
  host.querySelectorAll('.admin-role-toggle').forEach(button=>button.onclick=async()=>{
   const block=button.closest('[data-admin-user]'),id=block.dataset.adminUser;
@@ -649,7 +676,7 @@ async function loadAdminUsers(){
   if(!flags.can_view&&(flags.can_add||flags.can_edit||flags.can_delete)){msg.textContent='Enable View before Add, Edit or Delete.';return}
   button.disabled=true;msg.textContent='Saving '+adminTabNames[tab]+' permissions…';
   const {error}=await sb.rpc('admin_set_tab_permissions',{p_user_id:id,p_tab_key:tab,p_can_view:flags.can_view,p_can_add:flags.can_add,p_can_edit:flags.can_edit,p_can_delete:flags.can_delete});
-  msg.textContent=error?'Could not save: '+error.message:'Permissions saved. Enforcement across tabs is the next step.';
+  msg.textContent=error?'Could not save: '+error.message:'Permissions saved. Ask the user to refresh the app.';
   button.disabled=false;
  });
 }
